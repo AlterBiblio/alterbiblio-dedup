@@ -135,6 +135,9 @@ export function dedup(records, { mergeThr = 0.5, reviewThr = 0.3, prio = {} } = 
       const keeperEmpty = Array.isArray(keeper[f]) ? keeper[f].length === 0 : !keeper[f];
       if (truthy && (adopt || keeperEmpty)) keeper[f] = val;
     }
+    // ptypes: unión (el superviviente acumula la tipología de ambos), como dedup.py
+    const seen = new Set(keeper.ptypes);
+    for (const p of other.ptypes || []) if (!seen.has(p)) { seen.add(p); keeper.ptypes.push(p); }
     register(keeper);  // reindexar por si cambió doi/título/año
   };
   const candidates = (r) => {

@@ -4,7 +4,7 @@
 // Idioma (lang): "es" (por defecto) reproduce la salida histórica byte a byte —la paridad
 // y la batería no se mueven—; "en" traduce motivos, cabeceras de CSV y el informe vía i18n.
 
-import { reasonI18n, HEADERS, REPORT } from "./i18n.js";
+import { reasonI18n, HEADERS, REPORT, methodsSentence } from "./i18n.js";
 
 // dedup.py:442
 export function escaparRis(s) {
@@ -42,9 +42,9 @@ export function filasDuplicados(removed, lang = "es") {
     .map(({ r, keptr, reason }) => ({
       [H.motivo]: reasonI18n(reason, lang),
       [H.fuente_retirada]: r.source, [H.titulo_retirado]: r.title,
-      [H.doi_retirado]: r.doi, [H.año_retirado]: r.year,
+      [H.doi_retirado]: r.doi, [H.año_retirado]: r.year, [H.tipo_retirado]: (r.ptypes || []).join("; "),
       [H.fuente_conservada]: keptr.source, [H.titulo_conservado]: keptr.title,
-      [H.doi_conservado]: keptr.doi,
+      [H.doi_conservado]: keptr.doi, [H.tipo_conservado]: (keptr.ptypes || []).join("; "),
     }));
 }
 
@@ -54,8 +54,8 @@ export function filasRevisar(review, lang = "es") {
   return review.map(({ r, other, reason }, i) => ({
     [H.n]: i + 1,
     [H.motivo_duda]: reasonI18n(reason, lang),
-    [H.fuente_A]: r.source, [H.titulo_A]: r.title, [H.doi_A]: r.doi, [H.año_A]: r.year,
-    [H.fuente_B]: other.source, [H.titulo_B]: other.title, [H.doi_B]: other.doi, [H.año_B]: other.year,
+    [H.fuente_A]: r.source, [H.titulo_A]: r.title, [H.doi_A]: r.doi, [H.año_A]: r.year, [H.tipo_A]: (r.ptypes || []).join("; "),
+    [H.fuente_B]: other.source, [H.titulo_B]: other.title, [H.doi_B]: other.doi, [H.año_B]: other.year, [H.tipo_B]: (other.ptypes || []).join("; "),
   }));
 }
 
@@ -66,8 +66,9 @@ function dictRepr(m) {
 
 // dedup.py:480-514 — informe markdown, mismo texto que write_report.
 // sourcesCounts: Map fuente -> nº de registros identificados (orden de aparición).
-export function informe(sourcesCounts, kept, removed, review, lang = "es") {
+export function informe(sourcesCounts, kept, removed, review, lang = "es", referred = null) {
   const T = REPORT[lang] || REPORT.es;
+  if (referred == null) referred = review.length;
   let total = 0;
   for (const n of sourcesCounts.values()) total += n;
   const byReason = new Map();
@@ -106,5 +107,9 @@ export function informe(sourcesCounts, kept, removed, review, lang = "es") {
   if (noId || noYear) {
     g += `\n## ${T.warnings}\n\n- ${T.noId}: ${noId} ${T.noIdTail}\n- ${T.noYear}: ${noYear}\n`;
   }
+  const sentence = methodsSentence(lang, {
+    total, sources: [...sourcesCounts], removed: removed.length, kept: kept.length, referred,
+  });
+  g += `\n## ${T.methodsHeading}\n\n> ${sentence}\n`;
   return g;
 }

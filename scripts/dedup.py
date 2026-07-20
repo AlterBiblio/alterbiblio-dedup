@@ -33,7 +33,7 @@ Solo librería estándar de Python 3. Uso:
                    [--merge-threshold 0.5] [--review-threshold 0.3]
 """
 import sys, os, re, csv, argparse, unicodedata, xml.etree.ElementTree as ET
-from i18n import reason_i18n, HEADERS, REPORT  # traducción de la salida (es/en); es = idéntico
+from i18n import reason_i18n, HEADERS, REPORT, methods_sentence, estado_label  # traducción de la salida (es/en)
 
 # ------------------------------------------------------------------ normalización
 def strip_accents(s):
@@ -707,21 +707,22 @@ def write_dupes_csv(removed, path, lang="es"):
         w = csv.writer(g)
         w.writerow(HEADERS["duplicados"][lang])
         for r, keptr, reason in sorted(removed, key=lambda x: x[0]["source"]):
-            w.writerow([reason_i18n(reason, lang), r["source"], r["title"], r["doi"], r["year"],
-                        keptr["source"], keptr["title"], keptr["doi"]])
+            w.writerow([reason_i18n(reason, lang), r["source"], r["title"], r["doi"], r["year"], "; ".join(r["ptypes"]),
+                        keptr["source"], keptr["title"], keptr["doi"], "; ".join(keptr["ptypes"])])
 
 def write_review_csv(review, path, lang="es"):
     with open(path, "w", encoding="utf-8", newline="") as g:
         w = csv.writer(g)
         w.writerow(HEADERS["revisar"][lang])
         for n, (r, other, reason) in enumerate(review, 1):
-            w.writerow([n, reason_i18n(reason, lang), r["source"], r["title"], r["doi"], r["year"],
-                        other["source"], other["title"], other["doi"], other["year"]])
+            w.writerow([n, reason_i18n(reason, lang), r["source"], r["title"], r["doi"], r["year"], "; ".join(r["ptypes"]),
+                        other["source"], other["title"], other["doi"], other["year"], "; ".join(other["ptypes"])])
 
-def write_report(sources_counts, kept, removed, review, path, decisiones_resumen=None, lang="es"):
+def write_report(sources_counts, kept, removed, review, path, decisiones_resumen=None, lang="es", referred=None):
     # decisiones_resumen: {decisión: nº} de la pasada con --decisiones, o None
-    # (pasada normal -> informe byte-idéntico al de siempre, la paridad lo compara)
     T = REPORT[lang]
+    if referred is None:
+        referred = len(review)
     total = sum(sources_counts.values())
     by_reason = {}
     for _, _, reason in removed:
@@ -758,6 +759,41 @@ def write_report(sources_counts, kept, removed, review, path, decisiones_resumen
         no_year = sum(1 for r in kept if not r["year"])
         if no_id or no_year:
             g.write(f"\n## {T['warnings']}\n\n- {T['noId']}: {no_id} {T['noIdTail']}\n- {T['noYear']}: {no_year}\n")
+        sentence = methods_sentence(lang, {
+            "total": total, "sources": list(sources_counts.items()),
+            "removed": len(removed), "kept": len(kept), "referred": referred})
+        g.write(f"\n## {T['methodsHeading']}\n\n> {sentence}\n")
+
+def write_totales_csv(kept, removed, review, path, lang="es", linked=None):
+    """Fichero global: una fila por registro de entrada con su destino final.
+    estado ∈ mantenido | eliminado | vinculado | pendiente. relacionado_con = título
+    del registro emparejado (superviviente si eliminado; pareja si vinculado/pendiente)."""
+    pend_of = {}
+    for r, other, reason in review:
+        pend_of[id(r)] = (other, reason)
+        pend_of[id(other)] = (r, reason)
+    link_of = {}
+    for a, b in (linked or []):
+        link_of[id(a)] = b
+        link_of[id(b)] = a
+
+    def fila(estado, rec, rel_title, motivo):
+        return [estado_label(estado, lang), rec["title"], rec["year"], rec["doi"], rec["pmid"],
+                "; ".join(rec["ptypes"]), rec["source"], rel_title, motivo]
+
+    with open(path, "w", encoding="utf-8", newline="") as g:
+        w = csv.writer(g)
+        w.writerow(HEADERS["totales"][lang])
+        for r, keptr, reason in removed:
+            w.writerow(fila("eliminado", r, keptr["title"], reason_i18n(reason, lang)))
+        for r in kept:
+            if id(r) in link_of:
+                w.writerow(fila("vinculado", r, link_of[id(r)]["title"], ""))
+            elif id(r) in pend_of:
+                other, reason = pend_of[id(r)]
+                w.writerow(fila("pendiente", r, other["title"], reason_i18n(reason, lang)))
+            else:
+                w.writerow(fila("mantenido", r, "", ""))
 
 # ------------------------------------------------------------------ main
 def _err_formato(path):
@@ -832,11 +868,13 @@ def main():
 
     out = a.out or os.path.dirname(os.path.abspath(a.files[0]))
     os.makedirs(out, exist_ok=True)
+    referred = len(con_decisiones[0]) if con_decisiones else None  # pares originales remitidos
     write_ris(kept, os.path.join(out, "dedup.ris"))
     write_dupes_csv(removed, os.path.join(out, "duplicados.csv"), a.lang)
     write_review_csv(review, os.path.join(out, "revisar.csv"), a.lang)
     write_report(counts, kept, removed, review, os.path.join(out, "dedup_informe.md"),
-                 decisiones_resumen=con_decisiones[3] if con_decisiones else None, lang=a.lang)
+                 decisiones_resumen=con_decisiones[3] if con_decisiones else None, lang=a.lang, referred=referred)
+    write_totales_csv(kept, removed, review, os.path.join(out, "resultados_totales.csv"), a.lang)
     if con_decisiones:
         foto, decs, enlaces, tipos = con_decisiones
         write_decisiones_csv(foto, decs, enlaces, os.path.join(out, "decisiones.csv"), a.lang)
@@ -844,7 +882,7 @@ def main():
         print(f"Decisiones aplicadas: {len(decs)} ({detalle}) · dudosos pendientes: {len(review)}")
     print(f"\nTotal {len(allrecs)} -> únicos {len(kept)} · duplicados {len(removed)} · dudosos {len(review)}")
     print(f"Salida en: {out}")
-    print("  dedup.ris · duplicados.csv · revisar.csv · dedup_informe.md"
+    print("  dedup.ris · duplicados.csv · revisar.csv · resultados_totales.csv · dedup_informe.md"
           + (" · decisiones.csv" if con_decisiones else ""))
 
 if __name__ == "__main__":

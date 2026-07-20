@@ -79,22 +79,60 @@ def reason_i18n(es, lang):
 # Cabeceras de CSV por idioma (mismas claves internas, distinto rótulo en el fichero).
 HEADERS = {
     "duplicados": {
-        "es": ["motivo", "fuente_retirada", "titulo_retirado", "doi_retirado", "año_retirado",
-               "fuente_conservada", "titulo_conservado", "doi_conservado"],
-        "en": ["reason", "removed_source", "removed_title", "removed_doi", "removed_year",
-               "kept_source", "kept_title", "kept_doi"],
+        "es": ["motivo", "fuente_retirada", "titulo_retirado", "doi_retirado", "año_retirado", "tipo_retirado",
+               "fuente_conservada", "titulo_conservado", "doi_conservado", "tipo_conservado"],
+        "en": ["reason", "removed_source", "removed_title", "removed_doi", "removed_year", "removed_type",
+               "kept_source", "kept_title", "kept_doi", "kept_type"],
     },
     "revisar": {
-        "es": ["n", "motivo_duda", "fuente_A", "titulo_A", "doi_A", "año_A",
-               "fuente_B", "titulo_B", "doi_B", "año_B"],
-        "en": ["n", "review_reason", "source_A", "title_A", "doi_A", "year_A",
-               "source_B", "title_B", "doi_B", "year_B"],
+        "es": ["n", "motivo_duda", "fuente_A", "titulo_A", "doi_A", "año_A", "tipo_A",
+               "fuente_B", "titulo_B", "doi_B", "año_B", "tipo_B"],
+        "en": ["n", "review_reason", "source_A", "title_A", "doi_A", "year_A", "type_A",
+               "source_B", "title_B", "doi_B", "year_B", "type_B"],
     },
     "decisiones": {
         "es": ["n", "decision", "titulo_A", "titulo_B", "motivo"],
         "en": ["n", "decision", "title_A", "title_B", "reason"],
     },
+    "totales": {
+        "es": ["estado", "titulo", "año", "doi", "pmid", "tipo", "fuente", "relacionado_con", "motivo"],
+        "en": ["status", "title", "year", "doi", "pmid", "type", "source", "related_to", "reason"],
+    },
 }
+
+# Estados del fichero resultados_totales.csv.
+ESTADO = {
+    "mantenido": {"es": "mantenido", "en": "kept"},
+    "eliminado": {"es": "eliminado", "en": "removed"},
+    "vinculado": {"es": "vinculado", "en": "linked"},
+    "pendiente": {"es": "pendiente", "en": "unresolved"},
+}
+
+
+def estado_label(code, lang):
+    e = ESTADO.get(code)
+    return (e.get(lang) or e["es"]) if e else code
+
+
+def methods_sentence(lang, c):
+    """Frase para Material y Métodos. c = {total, sources:[(nombre,n),...], removed, kept, referred}."""
+    src_list = "; ".join(f"{s}, {n}" for s, n in c["sources"])
+    n_db = len(c["sources"])
+    if lang == "en":
+        return (
+            "Deduplication was performed with alterbiblio-dedup (AlterBiblio; https://alterbiblio.github.io/alterbiblio-dedup/), "
+            "a conservative tool that never merges records on a shared DOI alone and keeps trial-registry records separate. "
+            f"{c['total']} records were identified from {n_db} database{'s' if n_db != 1 else ''} ({src_list}). "
+            f"{c['removed']} duplicates were removed and {c['kept']} unique records were retained for screening; "
+            f"{c['referred']} ambiguous pairs were referred for human decision."
+        )
+    return (
+        "La deduplicación se realizó con alterbiblio-dedup (AlterBiblio; https://alterbiblio.github.io/alterbiblio-dedup/), "
+        "una herramienta conservadora que no fusiona registros por un DOI compartido de forma aislada y mantiene aparte "
+        f"los registros de ensayos. Se identificaron {c['total']} registros procedentes de {n_db} bases de datos ({src_list}). "
+        f"Se eliminaron {c['removed']} duplicados y se conservaron {c['kept']} registros únicos para el cribado; "
+        f"{c['referred']} pares ambiguos se remitieron a decisión humana."
+    )
 
 
 # Textos del informe markdown por idioma. El español reproduce EXACTAMENTE el literal histórico.
@@ -115,7 +153,7 @@ REPORT = {
         "fReview": "`revisar.csv` — dudosos para decisión humana",
         "fDecisions": "`decisiones.csv` — decisión tomada por dudoso (suplementario RS)",
         "warnings": "Avisos", "noId": "Únicos sin DOI ni PMID", "noIdTail": "(solo casables por título)",
-        "noYear": "Únicos sin año",
+        "noYear": "Únicos sin año", "methodsHeading": "Frase para Material y Métodos",
     },
     "en": {
         "h1": "Deduplication report",
@@ -133,6 +171,6 @@ REPORT = {
         "fReview": "`revisar.csv` — ambiguous pairs for human decision",
         "fDecisions": "`decisiones.csv` — decision taken per ambiguous pair (systematic-review supplement)",
         "warnings": "Warnings", "noId": "Unique records without DOI or PMID", "noIdTail": "(matchable by title only)",
-        "noYear": "Unique records without year",
+        "noYear": "Unique records without year", "methodsHeading": "Sentence for Methods",
     },
 }

@@ -70,23 +70,59 @@ export function reasonI18n(es, lang) { return lang === "en" ? reasonToEn(es) : e
 export const HEADERS = {
   duplicados: {
     es: { motivo: "motivo", fuente_retirada: "fuente_retirada", titulo_retirado: "titulo_retirado",
-          doi_retirado: "doi_retirado", año_retirado: "año_retirado",
-          fuente_conservada: "fuente_conservada", titulo_conservado: "titulo_conservado", doi_conservado: "doi_conservado" },
+          doi_retirado: "doi_retirado", año_retirado: "año_retirado", tipo_retirado: "tipo_retirado",
+          fuente_conservada: "fuente_conservada", titulo_conservado: "titulo_conservado",
+          doi_conservado: "doi_conservado", tipo_conservado: "tipo_conservado" },
     en: { motivo: "reason", fuente_retirada: "removed_source", titulo_retirado: "removed_title",
-          doi_retirado: "removed_doi", año_retirado: "removed_year",
-          fuente_conservada: "kept_source", titulo_conservado: "kept_title", doi_conservado: "kept_doi" },
+          doi_retirado: "removed_doi", año_retirado: "removed_year", tipo_retirado: "removed_type",
+          fuente_conservada: "kept_source", titulo_conservado: "kept_title",
+          doi_conservado: "kept_doi", tipo_conservado: "kept_type" },
   },
   revisar: {
-    es: { n: "n", motivo_duda: "motivo_duda", fuente_A: "fuente_A", titulo_A: "titulo_A", doi_A: "doi_A", año_A: "año_A",
-          fuente_B: "fuente_B", titulo_B: "titulo_B", doi_B: "doi_B", año_B: "año_B" },
-    en: { n: "n", motivo_duda: "review_reason", fuente_A: "source_A", titulo_A: "title_A", doi_A: "doi_A", año_A: "year_A",
-          fuente_B: "source_B", titulo_B: "title_B", doi_B: "doi_B", año_B: "year_B" },
+    es: { n: "n", motivo_duda: "motivo_duda", fuente_A: "fuente_A", titulo_A: "titulo_A", doi_A: "doi_A", año_A: "año_A", tipo_A: "tipo_A",
+          fuente_B: "fuente_B", titulo_B: "titulo_B", doi_B: "doi_B", año_B: "año_B", tipo_B: "tipo_B" },
+    en: { n: "n", motivo_duda: "review_reason", fuente_A: "source_A", titulo_A: "title_A", doi_A: "doi_A", año_A: "year_A", tipo_A: "type_A",
+          fuente_B: "source_B", titulo_B: "title_B", doi_B: "doi_B", año_B: "year_B", tipo_B: "type_B" },
   },
   decisiones: {
     es: { n: "n", decision: "decision", titulo_A: "titulo_A", titulo_B: "titulo_B", motivo: "motivo" },
     en: { n: "n", decision: "decision", titulo_A: "title_A", titulo_B: "title_B", motivo: "reason" },
   },
+  totales: {
+    es: { estado: "estado", titulo: "titulo", año: "año", doi: "doi", pmid: "pmid", tipo: "tipo",
+          fuente: "fuente", relacionado_con: "relacionado_con", motivo: "motivo" },
+    en: { estado: "status", titulo: "title", año: "year", doi: "doi", pmid: "pmid", tipo: "type",
+          fuente: "source", relacionado_con: "related_to", motivo: "reason" },
+  },
 };
+
+// Estados del fichero resultados_totales.csv.
+export const ESTADO = {
+  mantenido: { es: "mantenido", en: "kept" },
+  eliminado: { es: "eliminado", en: "removed" },
+  vinculado: { es: "vinculado", en: "linked" },
+  pendiente: { es: "pendiente", en: "unresolved" },
+};
+export function estadoLabel(code, lang) { const e = ESTADO[code]; return e ? (e[lang] || e.es) : code; }
+
+// Frase lista para Material y Métodos, con los números reales.
+// c: { total, sources: [[nombre, n], ...], removed, kept, referred }
+export function methodsSentence(lang, c) {
+  const srcList = c.sources.map(([s, n]) => `${s}, ${n}`).join("; ");
+  const nDb = c.sources.length;
+  if (lang === "en") {
+    return `Deduplication was performed with alterbiblio-dedup (AlterBiblio; https://alterbiblio.github.io/alterbiblio-dedup/), `
+      + `a conservative tool that never merges records on a shared DOI alone and keeps trial-registry records separate. `
+      + `${c.total} records were identified from ${nDb} database${nDb !== 1 ? "s" : ""} (${srcList}). `
+      + `${c.removed} duplicates were removed and ${c.kept} unique records were retained for screening; `
+      + `${c.referred} ambiguous pairs were referred for human decision.`;
+  }
+  return `La deduplicación se realizó con alterbiblio-dedup (AlterBiblio; https://alterbiblio.github.io/alterbiblio-dedup/), `
+    + `una herramienta conservadora que no fusiona registros por un DOI compartido de forma aislada y mantiene aparte `
+    + `los registros de ensayos. Se identificaron ${c.total} registros procedentes de ${nDb} bases de datos (${srcList}). `
+    + `Se eliminaron ${c.removed} duplicados y se conservaron ${c.kept} registros únicos para el cribado; `
+    + `${c.referred} pares ambiguos se remitieron a decisión humana.`;
+}
 
 // Textos del informe markdown por idioma.
 export const REPORT = {
@@ -102,6 +138,7 @@ export const REPORT = {
     files: "Ficheros", fDedup: "`dedup.ris` — únicos para cribar", fDups: "`duplicados.csv` — retirados (suplementario)",
     fReview: "`revisar.csv` — dudosos para decisión humana",
     warnings: "Avisos", noId: "Únicos sin DOI ni PMID", noIdTail: "(solo casables por título)", noYear: "Únicos sin año",
+    methodsHeading: "Frase para Material y Métodos",
   },
   en: {
     h1: "Deduplication report",
@@ -115,6 +152,7 @@ export const REPORT = {
     files: "Files", fDedup: "`dedup.ris` — unique records for screening", fDups: "`duplicados.csv` — removed (supplementary)",
     fReview: "`revisar.csv` — ambiguous pairs for human decision",
     warnings: "Warnings", noId: "Unique records without DOI or PMID", noIdTail: "(matchable by title only)", noYear: "Unique records without year",
+    methodsHeading: "Sentence for Methods",
   },
 };
 
@@ -142,9 +180,9 @@ export const UI = {
     noPairs: "No hay pares dudosos: la deduplicación fue inequívoca.",
     recA: "Registro A", recB: "Registro B", keepBoth: "Mantener ambos", inScreen: "Decidir en la criba",
     undecided: "sin decidir", lblA: "conservar A", lblB: "conservar B", lblBoth: "ambos", lblScreen: "en la criba",
-    noTitle: "(sin título)", noAbs: "(sin resumen)", srcLabel: "fuente:",
+    noTitle: "(sin título)", noAbs: "(sin resumen)", srcLabel: "fuente:", docType: "tipo",
     dlDedup: "⬇ dedup.ris (únicos)", dlDups: "⬇ duplicados.csv", dlReview: "⬇ revisar.csv (sin resolver)",
-    dlDecisions: "⬇ decisiones.csv", dlReport: "⬇ informe.rtf (Word)",
+    dlDecisions: "⬇ decisiones.csv", dlReport: "⬇ informe.rtf (Word)", dlTotales: "⬇ resultados_totales.csv",
     footerTool: "Herramienta abierta de", footerRest: "· deduplicación conservadora ·", footerGh: "código y algoritmo en GitHub",
     footerPrinciple: "El DOI por sí solo nunca fusiona; los registros de ensayo se mantienen aparte; los pares ambiguos van a decisión humana.",
     prIdentified: "Registros identificados de bases de datos", prTotal: "Total", prRemoved: "Registros eliminados antes del cribado:",
@@ -176,9 +214,9 @@ export const UI = {
     noPairs: "No ambiguous pairs: deduplication was unambiguous.",
     recA: "Record A", recB: "Record B", keepBoth: "Keep both", inScreen: "Decide at screening",
     undecided: "undecided", lblA: "keep A", lblB: "keep B", lblBoth: "both", lblScreen: "at screening",
-    noTitle: "(no title)", noAbs: "(no abstract)", srcLabel: "source:",
+    noTitle: "(no title)", noAbs: "(no abstract)", srcLabel: "source:", docType: "type",
     dlDedup: "⬇ dedup.ris (unique)", dlDups: "⬇ duplicados.csv", dlReview: "⬇ revisar.csv (unresolved)",
-    dlDecisions: "⬇ decisiones.csv", dlReport: "⬇ report.rtf (Word)",
+    dlDecisions: "⬇ decisiones.csv", dlReport: "⬇ report.rtf (Word)", dlTotales: "⬇ resultados_totales.csv",
     footerTool: "An open tool by", footerRest: "· conservative deduplication ·", footerGh: "code and algorithm on GitHub",
     footerPrinciple: "A shared DOI alone never merges; trial-registry records are kept separate; ambiguous pairs go to human decision.",
     prIdentified: "Records identified from databases", prTotal: "Total", prRemoved: "Records removed before screening:",

@@ -183,7 +183,7 @@
 
 <script type="module">
 import { deduplicar, escribirRis, filasDuplicados, filasRevisar, informe } from "./engine/index.js";
-import { UI, reasonI18n } from "./engine/i18n.js";
+import { UI, reasonI18n, estadoLabel, HEADERS } from "./engine/i18n.js";
 
 const $ = s => document.querySelector(s);
 const state = new Map();           // id -> {name,text,source}
@@ -323,7 +323,7 @@ function refresh(){
 }
 
 /* ---------- dudosos ---------- */
-function refField(r){return {t:r.title,au:(r.authors||[]).join(", "),jo:r.journal,yr:r.year,doi:r.doi,ab:r.abstract,src:r.source,pmid:r.pmid};}
+function refField(r){return {t:r.title,au:(r.authors||[]).join(", "),jo:r.journal,yr:r.year,doi:r.doi,ab:r.abstract,src:r.source,pmid:r.pmid,pt:(r.ptypes||[]).join(", ")};}
 function renderPairs(){
   const box=$("#pairs");box.innerHTML="";
   if(!result.reviewFull.length){box.innerHTML=`<p class="note">${T().noPairs}</p>`;return;}
@@ -371,7 +371,7 @@ function refCard(title,r){
     <div class="rt">${esc(r.t)||`<span class='mo'>${T().noTitle}</span>`}</div>
     <div class="rm2">${esc(r.au)}</div>
     <div class="rm2">${esc(r.jo)}${r.yr?" · "+esc(r.yr):""}</div>
-    <div class="rm2">${idLinks(r)}<br><span class="mo">${T().srcLabel} ${esc(r.src)}</span></div>
+    <div class="rm2">${idLinks(r)}${r.pt?` · <b>${T().docType}:</b> ${esc(r.pt)}`:""}<br><span class="mo">${T().srcLabel} ${esc(r.src)}</span></div>
     ${r.ab?`<div class="ab">${esc(r.ab)}</div>`:`<div class="ab mo">${T().noAbs}</div>`}</div>`;
 }
 
@@ -379,7 +379,28 @@ function refCard(title,r){
 function finalRis(){return escribirRis(computeFinal().kept);}
 function finalDupsCsv(){return toCsv(filasDuplicados(computeFinal().removed,lang));}
 function finalReviewCsv(){return toCsv(filasRevisar(computeFinal().pending,lang));}
-function finalInforme(){const f=computeFinal();return informe(result.srcCounts,f.kept,f.removed,f.pending,lang);}
+function finalInforme(){const f=computeFinal();return informe(result.srcCounts,f.kept,f.removed,f.pending,lang,result.reviewFull.length);}
+// Fichero global: una fila por registro de entrada con su destino final (refleja tus decisiones).
+function masterRows(){
+  const H=HEADERS.totales[lang], f=computeFinal();
+  const row=(estado,r,relTitle,motivo)=>({
+    [H.estado]:estadoLabel(estado,lang),[H.titulo]:r.title,[H.año]:r.year,[H.doi]:r.doi,[H.pmid]:r.pmid,
+    [H.tipo]:(r.ptypes||[]).join("; "),[H.fuente]:r.source,[H.relacionado_con]:relTitle,[H.motivo]:motivo});
+  const linkOf=new Map(), pendOf=new Map();
+  for(const p of result.reviewFull){
+    const d=decisiones.get(p.n);
+    if(d==="ambos"){linkOf.set(p.a,{o:p.b,reason:p.reason});linkOf.set(p.b,{o:p.a,reason:p.reason});}
+    else if(d==="criba"||d==null){pendOf.set(p.a,{o:p.b,reason:p.reason});pendOf.set(p.b,{o:p.a,reason:p.reason});}
+  }
+  const rows=[];
+  for(const {r,keptr,reason} of f.removed) rows.push(row("eliminado",r,keptr.title,reasonI18n(reason,lang)));
+  for(const r of f.kept){
+    if(linkOf.has(r)){const{o,reason}=linkOf.get(r);rows.push(row("vinculado",r,o.title,reasonI18n(reason,lang)));}
+    else if(pendOf.has(r)){const{o,reason}=pendOf.get(r);rows.push(row("pendiente",r,o.title,reasonI18n(reason,lang)));}
+    else rows.push(row("mantenido",r,"",""));
+  }
+  return rows;
+}
 function decisionesCsv(){
   const H = lang==="en" ? {n:"n",decision:"decision",tA:"title_A",tB:"title_B",motivo:"reason"}
                         : {n:"n",decision:"decision",tA:"titulo_A",tB:"titulo_B",motivo:"motivo"};
@@ -392,6 +413,7 @@ function renderDownloads(){
   const mk=(t,fn)=>{const b=document.createElement("button");b.className="ghost";b.textContent=t;b.onclick=fn;dl.appendChild(b);};
   mk(T().dlDedup,()=>download("dedup.ris",finalRis(),"application/x-research-info-systems"));
   mk(T().dlDups,()=>download("duplicados.csv",finalDupsCsv(),"text/csv"));
+  mk(T().dlTotales,()=>download("resultados_totales.csv",toCsv(masterRows()),"text/csv"));
   const f=computeFinal();
   if(f.pending.length) mk(T().dlReview,()=>download("revisar.csv",finalReviewCsv(),"text/csv"));
   if(result.reviewFull.length) mk(T().dlDecisions,()=>download("decisiones.csv",decisionesCsv(),"text/csv"));

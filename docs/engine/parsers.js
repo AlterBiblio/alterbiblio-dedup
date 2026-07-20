@@ -18,9 +18,12 @@ function splitLines(s) {
 // mismas claves y mismos valores por defecto que el dict de Python.
 export function rec(source, { title = "", doi = "", year = "", authors = null,
   journal = "", volume = "", issue = "", spage = "", pmid = "",
-  abstract = "", extra = null, url = "", accession = "", eid = "" } = {}) {
+  abstract = "", extra = null, url = "", accession = "", eid = "", ptypes = null } = {}) {
   return {
     source,
+    // ptypes: tipología documental declarada por la base (PubMed PT / Embase M3),
+    // p. ej. "Editorial", "Letter", "Review". Informativa: no se usa para emparejar.
+    ptypes: (ptypes || []).map(p => (p || "").trim()).filter(Boolean),
     title: (title || "").trim(),
     ntitle: normTitle(title),
     doi: normDoi(doi),
@@ -106,12 +109,14 @@ export function parseRis(text, source) {
       const mc3e = /EMBASE\s+(\d{6,})/i.exec((f.C3 || []).join(" "));
       if (mc3e) eid = mc3e[1];
     }
+    // tipología documental: Embase la da en M3, algunos RIS en PT; ambos pueden llevar ";"
+    const ptypes = [].concat(f.M3 || [], f.PT || []).flatMap(v => v.split(";"));
     out.push(rec(source, {
       title: g("TI", "T1"), doi, year: g("PY", "Y1", "DA"),
       authors: "AU" in f ? f.AU : ("A1" in f ? f.A1 : []),
       journal: g("JO", "JF", "T2", "JA"),
       volume: g("VL"), issue: g("IS"), spage: g("SP"),
-      pmid, abstract: g("AB", "N2"), url, accession, eid,
+      pmid, abstract: g("AB", "N2"), url, accession, eid, ptypes,
     }));
   }
   return out;
@@ -151,6 +156,7 @@ export function parseMedline(text, source) {
       volume: (f.VI || [""])[0], issue: (f.IP || [""])[0],
       spage: (f.PG || [""])[0], pmid: ((f.PMID || [""])[0]).trim(),
       abstract: (f.AB || []).join(" "),
+      ptypes: f.PT || [],
     }));
   }
   return out;
