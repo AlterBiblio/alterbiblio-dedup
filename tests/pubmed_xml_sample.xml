@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<PubmedArticleSet>
+ <PubmedArticle><MedlineCitation>
+  <PMID>333</PMID>
+  <Article>
+   <ArticleTitle>Grip strength as a frailty marker</ArticleTitle>
+   <ELocationID EIdType="doi">10.1/eee</ELocationID>
+   <Journal><Title>Age</Title><JournalIssue><Volume>5</Volume></JournalIssue></Journal>
+   <AbstractText>Resumen.</AbstractText>
+   <AuthorList><Author><LastName>Kim</LastName><ForeName>L</ForeName></Author></AuthorList>
+   <PubDate><Year>2024</Year></PubDate>
+  </Article></MedlineCitation></PubmedArticle>
+ <PubmedArticle><MedlineCitation>
+  <PMID>334</PMID>
+  <Article>
+   <ArticleTitle>Phase angle and outcomes in surgery</ArticleTitle>
+   <ELocationID EIdType="doi">10.1/rev</ELocationID>
+   <PubDate><Year>2023</Year></PubDate>
+  </Article></MedlineCitation></PubmedArticle>
+</PubmedArticleSet>

@@ -1,0 +1,10 @@
+{
+  "name": "alterbiblio-dedup",
+  "version": "0.0.0",
+  "private": true,
+  "license": "CC-BY-NC-SA-4.0",
+  "type": "module",
+  "scripts": {
+    "test:js": "node tests/run_shared.mjs && node tests/run_paridad.mjs && node --test tests/unit/*.mjs"
+  }
+}
