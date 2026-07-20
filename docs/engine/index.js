@@ -24,7 +24,7 @@ function nombreBase(name) {
 }
 
 export function deduplicar(entradas, opts = {}) {
-  const { mergeThr = 0.5, reviewThr = 0.3, format = null } = opts;
+  const { mergeThr = 0.5, reviewThr = 0.3, format = null, lang = "es" } = opts;
   const allrecs = [];
   const counts = new Map();
   for (const { name, text, source } of entradas) {
@@ -55,14 +55,14 @@ export function deduplicar(entradas, opts = {}) {
   const { kept, removed, review } = dedup(allrecs, { mergeThr, reviewThr });
   return {
     ris: escribirRis(kept),
-    dups: filasDuplicados(removed),
-    review: filasRevisar(review),
+    dups: filasDuplicados(removed, lang),
+    review: filasRevisar(review, lang),
     counts: {
       total: allrecs.length, unicos: kept.length,
       duplicados: removed.length, dudosos: review.length,
       porFuente: Object.fromEntries(counts),
     },
-    informe: informe(counts, kept, removed, review),
+    informe: informe(counts, kept, removed, review, lang),
     // --- extras para la resolución humana en la web (no afectan a CLI/CSV/paridad) ---
     kept,               // registros conservados (objetos completos)
     removed,            // [{ r, keptr, reason }]

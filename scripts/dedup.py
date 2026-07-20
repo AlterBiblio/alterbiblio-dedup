@@ -33,6 +33,7 @@ Solo librería estándar de Python 3. Uso:
                    [--merge-threshold 0.5] [--review-threshold 0.3]
 """
 import sys, os, re, csv, argparse, unicodedata, xml.etree.ElementTree as ET
+from i18n import reason_i18n, HEADERS, REPORT  # traducción de la salida (es/en); es = idéntico
 
 # ------------------------------------------------------------------ normalización
 def strip_accents(s):
@@ -701,31 +702,30 @@ def write_ris(recs, path):
             g.write(f"DB  - {srcs}\n")
             g.write("ER  - \n\n")
 
-def write_dupes_csv(removed, path):
+def write_dupes_csv(removed, path, lang="es"):
     with open(path, "w", encoding="utf-8", newline="") as g:
         w = csv.writer(g)
-        w.writerow(["motivo", "fuente_retirada", "titulo_retirado", "doi_retirado", "año_retirado",
-                    "fuente_conservada", "titulo_conservado", "doi_conservado"])
+        w.writerow(HEADERS["duplicados"][lang])
         for r, keptr, reason in sorted(removed, key=lambda x: x[0]["source"]):
-            w.writerow([reason, r["source"], r["title"], r["doi"], r["year"],
+            w.writerow([reason_i18n(reason, lang), r["source"], r["title"], r["doi"], r["year"],
                         keptr["source"], keptr["title"], keptr["doi"]])
 
-def write_review_csv(review, path):
+def write_review_csv(review, path, lang="es"):
     with open(path, "w", encoding="utf-8", newline="") as g:
         w = csv.writer(g)
-        w.writerow(["n", "motivo_duda", "fuente_A", "titulo_A", "doi_A", "año_A",
-                    "fuente_B", "titulo_B", "doi_B", "año_B"])
+        w.writerow(HEADERS["revisar"][lang])
         for n, (r, other, reason) in enumerate(review, 1):
-            w.writerow([n, reason, r["source"], r["title"], r["doi"], r["year"],
+            w.writerow([n, reason_i18n(reason, lang), r["source"], r["title"], r["doi"], r["year"],
                         other["source"], other["title"], other["doi"], other["year"]])
 
-def write_report(sources_counts, kept, removed, review, path, decisiones_resumen=None):
+def write_report(sources_counts, kept, removed, review, path, decisiones_resumen=None, lang="es"):
     # decisiones_resumen: {decisión: nº} de la pasada con --decisiones, o None
     # (pasada normal -> informe byte-idéntico al de siempre, la paridad lo compara)
+    T = REPORT[lang]
     total = sum(sources_counts.values())
     by_reason = {}
     for _, _, reason in removed:
-        key = reason.split(" ")[0]; by_reason[key] = by_reason.get(key, 0) + 1
+        key = reason_i18n(reason, lang).split(" ")[0]; by_reason[key] = by_reason.get(key, 0) + 1
     names = list(sources_counts)
     overlap = {}
     for i in range(len(names)):
@@ -737,30 +737,27 @@ def write_report(sources_counts, kept, removed, review, path, decisiones_resumen
             a, b = k.split(" ∩ ")
             if {a, b} <= srcs: overlap[k] += 1
     with open(path, "w", encoding="utf-8") as g:
-        g.write("# Informe de deduplicación\n\n")
-        g.write("Método conservador: PMID · título+año · DOI+título (Jaccard≥umbral) · revista+vol+nº+pág. "
-                "El **DOI solo NO fusiona** (los abstracts de congreso comparten el DOI del suplemento). "
-                "Los emparejamientos dudosos se apartan a `revisar.csv` y **no** se fusionan.\n\n")
-        g.write("## Números (para PRISMA)\n\n| Fuente | Registros identificados |\n|---|---|\n")
+        g.write(f"# {T['h1']}\n\n")
+        g.write(T["method"] + "\n\n")
+        g.write(f"## {T['numbers']}\n\n| {T['colSource']} | {T['colIdentified']} |\n|---|---|\n")
         for s, n in sources_counts.items(): g.write(f"| {s} | {n} |\n")
-        g.write(f"| **Total** | **{total}** |\n\n")
-        g.write(f"- **Duplicados retirados: {len(removed)}** ({by_reason})\n")
+        g.write(f"| **{T['total']}** | **{total}** |\n\n")
+        g.write(f"- **{T['dupRemoved']}: {len(removed)}** ({by_reason})\n")
         if decisiones_resumen:
             detalle = " · ".join(f"{k}: {v}" for k, v in sorted(decisiones_resumen.items()))
-            g.write(f"- **Decisiones humanas aplicadas: {sum(decisiones_resumen.values())}** ({detalle})\n")
-        g.write(f"- **Dudosos apartados a revisión (conservados): {len(review)}**\n")
-        g.write(f"- **Registros únicos para cribado: {len(kept)}**\n\n")
-        g.write("## Solapamiento entre bases (registros presentes en 2+)\n\n")
+            g.write(f"- **{T['decisionsApplied']}: {sum(decisiones_resumen.values())}** ({detalle})\n")
+        g.write(f"- **{T['reviewKept']}: {len(review)}**\n")
+        g.write(f"- **{T['uniqueScreening']}: {len(kept)}**\n\n")
+        g.write(f"## {T['overlap']}\n\n")
         for k, v in overlap.items(): g.write(f"- {k}: {v}\n")
-        g.write("\n## Ficheros\n\n- `dedup.ris` — únicos para cribar\n- `duplicados.csv` — retirados (suplementario)\n"
-                "- `revisar.csv` — dudosos para decisión humana\n")
+        g.write(f"\n## {T['files']}\n\n- {T['fDedup']}\n- {T['fDups']}\n- {T['fReview']}\n")
         if decisiones_resumen:
-            g.write("- `decisiones.csv` — decisión tomada por dudoso (suplementario RS)\n")
+            g.write(f"- {T['fDecisions']}\n")
         # avisos de calidad
         no_id = sum(1 for r in kept if not r["doi"] and not r["pmid"])
         no_year = sum(1 for r in kept if not r["year"])
         if no_id or no_year:
-            g.write(f"\n## Avisos\n\n- Únicos sin DOI ni PMID: {no_id} (solo casables por título)\n- Únicos sin año: {no_year}\n")
+            g.write(f"\n## {T['warnings']}\n\n- {T['noId']}: {no_id} {T['noIdTail']}\n- {T['noYear']}: {no_year}\n")
 
 # ------------------------------------------------------------------ main
 def _err_formato(path):
@@ -777,6 +774,8 @@ def main():
     ap.add_argument("--format", default=None, help="forzar formato para todos (ris|medline|pubmed_xml|bibtex|csv)")
     ap.add_argument("--merge-threshold", type=float, default=0.5)
     ap.add_argument("--review-threshold", type=float, default=0.3)
+    ap.add_argument("--lang", choices=["es", "en"], default="es",
+                    help="idioma de la salida: motivos, cabeceras de CSV e informe (es por defecto)")
     ap.add_argument("--decisiones", default=None, metavar="FILE",
                     help="mini CSV n,decisión con las decisiones humanas sobre el revisar.csv "
                          "de una pasada previa (conservar_A/conservar_B/mantener_ambos/enlazar); "
@@ -834,13 +833,13 @@ def main():
     out = a.out or os.path.dirname(os.path.abspath(a.files[0]))
     os.makedirs(out, exist_ok=True)
     write_ris(kept, os.path.join(out, "dedup.ris"))
-    write_dupes_csv(removed, os.path.join(out, "duplicados.csv"))
-    write_review_csv(review, os.path.join(out, "revisar.csv"))
+    write_dupes_csv(removed, os.path.join(out, "duplicados.csv"), a.lang)
+    write_review_csv(review, os.path.join(out, "revisar.csv"), a.lang)
     write_report(counts, kept, removed, review, os.path.join(out, "dedup_informe.md"),
-                 decisiones_resumen=con_decisiones[3] if con_decisiones else None)
+                 decisiones_resumen=con_decisiones[3] if con_decisiones else None, lang=a.lang)
     if con_decisiones:
         foto, decs, enlaces, tipos = con_decisiones
-        write_decisiones_csv(foto, decs, enlaces, os.path.join(out, "decisiones.csv"))
+        write_decisiones_csv(foto, decs, enlaces, os.path.join(out, "decisiones.csv"), a.lang)
         detalle = " · ".join(f"{k}: {v}" for k, v in sorted(tipos.items()))
         print(f"Decisiones aplicadas: {len(decs)} ({detalle}) · dudosos pendientes: {len(review)}")
     print(f"\nTotal {len(allrecs)} -> únicos {len(kept)} · duplicados {len(removed)} · dudosos {len(review)}")

@@ -53,7 +53,7 @@ def cargar_decisiones(path):
     return out
 
 
-def write_decisiones_csv(review_original, decisiones, enlaces, path):
+def write_decisiones_csv(review_original, decisiones, enlaces, path, lang="es"):
     """Suplemento decisiones.csv: una fila por dudoso ORIGINAL de revisar.csv.
 
     Es el registro trazable de la revisión: qué se dudó, qué se decidió y qué
@@ -66,20 +66,25 @@ def write_decisiones_csv(review_original, decisiones, enlaces, path):
     (al fusionar, el conservado puede adoptar campos del retirado); enlaces es
     la lista que devuelve aplicar_decisiones, en el mismo orden que review.
     """
+    from i18n import reason_i18n
+    head = (["n", "motivo_duda", "fuente_A", "titulo_A", "doi_A", "año_A",
+             "fuente_B", "titulo_B", "doi_B", "año_B", "decisión", "nota"] if lang == "es"
+            else ["n", "review_reason", "source_A", "title_A", "doi_A", "year_A",
+                  "source_B", "title_B", "doi_B", "year_B", "decision", "note"])
+    pend = "pendiente" if lang == "es" else "pending"
     it = iter(enlaces)
     with open(path, "w", encoding="utf-8", newline="") as g:
         w = csv.writer(g)
-        w.writerow(["n", "motivo_duda", "fuente_A", "titulo_A", "doi_A", "año_A",
-                    "fuente_B", "titulo_B", "doi_B", "año_B", "decisión", "nota"])
+        w.writerow(head)
         for n, (r, other, reason) in enumerate(review_original, 1):
             dec = decisiones.get(n, "")
             nota = ""
             if dec == "enlazar":
                 a, _b = next(it)
                 nota = a["extra"]["nota"]
-            w.writerow([n, reason, r["source"], r["title"], r["doi"], r["year"],
+            w.writerow([n, reason_i18n(reason, lang), r["source"], r["title"], r["doi"], r["year"],
                         other["source"], other["title"], other["doi"], other["year"],
-                        dec or "pendiente", nota])
+                        dec or pend, nota])
 
 
 def _nota_relacionado(other):

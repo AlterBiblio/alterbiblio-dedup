@@ -103,25 +103,26 @@
     <div>
       <h1><span class="sep">/</span> <span class="un un-lima">dedup</span></h1>
     </div>
+    <button class="ghost" id="langBtn" style="margin-left:auto" title="Español / English">EN</button>
   </header>
-  <p class="lede">Deduplicación conservadora de resultados de búsqueda, antes del cribado. Todo se procesa <b>en tu navegador</b>: ningún fichero sale de tu ordenador.</p>
+  <p class="lede" data-i18n-html="tagline">Deduplicación conservadora de resultados de búsqueda, antes del cribado. Todo se procesa <b>en tu navegador</b>: ningún fichero sale de tu ordenador.</p>
 
   <!-- 1 -->
   <section id="s1" class="open">
-    <div class="shead"><span class="num">01/</span><h2>Deduplicación · sube las exportaciones</h2></div>
+    <div class="shead"><span class="num">01/</span><h2 data-i18n="s1">Deduplicación · sube las exportaciones</h2></div>
     <div class="sbody">
-      <p class="note" style="margin-top:0">Un fichero por base de datos (RIS <code>.ris</code>, MEDLINE/PubMed <code>.nbib</code>, PubMed XML <code>.xml</code>, BibTeX <code>.bib</code> o CSV). La etiqueta de cada fichero es el nombre de la fuente en el recuento y el solapamiento.</p>
+      <p class="note" style="margin-top:0" data-i18n-html="s1note">Un fichero por base de datos (RIS <code>.ris</code>, MEDLINE/PubMed <code>.nbib</code>, PubMed XML <code>.xml</code>, BibTeX <code>.bib</code> o CSV). La etiqueta de cada fichero es el nombre de la fuente en el recuento y el solapamiento.</p>
       <div class="drop" id="drop">
-        <p style="margin:0"><b>Arrastra aquí</b> tus ficheros o <u>haz clic para elegirlos</u></p>
+        <p style="margin:0" data-i18n-html="drop"><b>Arrastra aquí</b> tus ficheros o <u>haz clic para elegirlos</u></p>
         <input type="file" id="file" multiple accept=".ris,.nbib,.xml,.bib,.csv,.txt" class="hidden">
       </div>
       <ul class="files" id="filelist"></ul>
       <div class="titline">
-        <label for="revtitle">Título de la revisión (para el diagrama PRISMA)</label>
-        <input type="text" id="revtitle" placeholder="p. ej. Sarcopenia y complicaciones tras cistectomía radical">
+        <label for="revtitle" data-i18n="revlabel">Título de la revisión (para el diagrama PRISMA)</label>
+        <input type="text" id="revtitle" data-i18n-ph="revph" placeholder="p. ej. Sarcopenia y complicaciones tras cistectomía radical">
       </div>
       <div class="runbar" style="margin-top:14px">
-        <button class="btn" id="run" disabled>Deduplicar</button>
+        <button class="btn" id="run" data-i18n="run" disabled>Deduplicar</button>
         <span class="hint" id="hint">Añade al menos un fichero.</span>
       </div>
       <div id="error" class="err hidden"></div>
@@ -130,62 +131,84 @@
 
   <!-- 2 -->
   <section id="s2" class="locked">
-    <div class="shead"><span class="num">02/</span><h2>Resultado</h2><span class="chev">▸</span></div>
+    <div class="shead"><span class="num">02/</span><h2 data-i18n="s2">Resultado</h2><span class="chev">▸</span></div>
     <div class="sbody"><div class="cards" id="metrics"></div></div>
   </section>
 
   <!-- 3 -->
   <section id="s3" class="locked">
-    <div class="shead"><span class="num">03/</span><h2>Dudosos · requieren verificación humana</h2><span class="chev">▸</span></div>
+    <div class="shead"><span class="num">03/</span><h2 data-i18n="s3">Dudosos · requieren verificación humana</h2><span class="chev">▸</span></div>
     <div class="sbody">
-      <p class="note" style="margin-top:0">La herramienta <b>no fusiona a ciegas</b>: decide para cada par si es la misma obra. <b>Despliega para ver las referencias completas</b> (incluido el resumen). Elige <b>Registro A</b>, <b>Registro B</b>, <b>Mantener ambos</b> (obras distintas) o <b>Decidir en la criba</b> (se quedan los dos, lo resuelves en Rayyan).</p>
+      <p class="note" style="margin-top:0" data-i18n-html="s3note">La herramienta <b>no fusiona a ciegas</b>: decide para cada par si es la misma obra. <b>Despliega para ver las referencias completas</b> (incluido el resumen). Elige <b>Registro A</b>, <b>Registro B</b>, <b>Mantener ambos</b> (obras distintas) o <b>Decidir en la criba</b> (se quedan los dos, lo resuelves en Rayyan).</p>
       <div id="pairs"></div>
     </div>
   </section>
 
   <!-- 4 -->
   <section id="s4" class="locked">
-    <div class="shead"><span class="num">04/</span><h2>Diagrama PRISMA 2020</h2><span class="chev">▸</span></div>
+    <div class="shead"><span class="num">04/</span><h2 data-i18n="s4">Diagrama PRISMA 2020</h2><span class="chev">▸</span></div>
     <div class="sbody">
-      <div id="prismaGate" class="lock-msg">Se genera cuando cada dudoso tiene una decisión (arriba). Pendientes: <span id="pend">—</span>.</div>
+      <div id="prismaGate" class="lock-msg"><span data-i18n="prismaGate">Se genera cuando cada dudoso tiene una decisión (arriba). Pendientes:</span> <span id="pend">—</span>.</div>
       <div id="prismaArea" class="hidden">
         <div class="scroll" id="prisma"></div>
         <div class="dl">
-          <button class="ghost" id="dlPptx">Descargar PRISMA editable (PPT)</button>
-          <button class="ghost" id="dlPrisma">PRISMA (SVG)</button>
-          <button class="ghost" id="dlPrismaPng">PRISMA (PNG)</button>
+          <button class="ghost" id="dlPptx" data-i18n="dlPptx">Descargar PRISMA editable (PPT)</button>
+          <button class="ghost" id="dlPrisma" data-i18n="dlSvg">PRISMA (SVG)</button>
+          <button class="ghost" id="dlPrismaPng" data-i18n="dlPng">PRISMA (PNG)</button>
         </div>
-        <p class="note">Las cajas posteriores al cribado van vacías en el PPT (<code>n = ____</code>) para que las completes tras el cribado y la selección.</p>
+        <p class="note" data-i18n-html="prismaNote">Las cajas posteriores al cribado van vacías en el PPT (<code>n = ____</code>) para que las completes tras el cribado y la selección.</p>
       </div>
     </div>
   </section>
 
   <!-- 5 -->
   <section id="s5" class="locked">
-    <div class="shead"><span class="num">05/</span><h2>Descarga de archivos</h2><span class="chev">▸</span></div>
+    <div class="shead"><span class="num">05/</span><h2 data-i18n="s5">Descarga de archivos</h2><span class="chev">▸</span></div>
     <div class="sbody"><div class="dl" id="downloads"></div>
-      <p class="note">Los archivos reflejan tus decisiones sobre los dudosos.</p></div>
+      <p class="note" data-i18n="s5note">Los archivos reflejan tus decisiones sobre los dudosos.</p></div>
   </section>
 
   <!-- 6 -->
   <section id="s6" class="locked">
-    <div class="shead"><span class="num">06/</span><h2>Informe completo</h2><span class="chev">▸</span></div>
+    <div class="shead"><span class="num">06/</span><h2 data-i18n="s6">Informe completo</h2><span class="chev">▸</span></div>
     <div class="sbody"><pre class="report" id="report"></pre></div>
   </section>
 
   <footer>
-    <p>Herramienta abierta de <b><a href="https://alterbiblio.com" target="_blank" rel="noopener">AlterBiblio</a></b> · deduplicación conservadora · <a href="https://github.com/AlterBiblio/alterbiblio-dedup" target="_blank" rel="noopener">código y algoritmo en GitHub</a>. El DOI por sí solo nunca fusiona; los registros de ensayo se mantienen aparte; los pares ambiguos van a decisión humana.</p>
+    <p><span data-i18n="footerTool">Herramienta abierta de</span> <b><a href="https://alterbiblio.com" target="_blank" rel="noopener">AlterBiblio</a></b> <span data-i18n="footerRest">· deduplicación conservadora ·</span> <a href="https://github.com/AlterBiblio/alterbiblio-dedup" target="_blank" rel="noopener" data-i18n="footerGh">código y algoritmo en GitHub</a>. <span data-i18n="footerPrinciple">El DOI por sí solo nunca fusiona; los registros de ensayo se mantienen aparte; los pares ambiguos van a decisión humana.</span></p>
     <p id="artlink" class="hidden"></p>
-    <p>© AlterBiblio (Alter Biblio S.L.). Contenido y código bajo licencia <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.es" target="_blank" rel="noopener">Creative Commons BY-NC-SA 4.0</a>: cítese siempre la fuente, uso no comercial, y compartir bajo la misma licencia.</p>
+    <p>© AlterBiblio (Alter Biblio S.L.). <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">Creative Commons BY-NC-SA 4.0</a>.</p>
   </footer>
 </div>
 
 <script type="module">
 import { deduplicar, escribirRis, filasDuplicados, filasRevisar, informe } from "./engine/index.js";
+import { UI, reasonI18n } from "./engine/i18n.js";
 
 const $ = s => document.querySelector(s);
 const state = new Map();           // id -> {name,text,source}
 let seq = 0, result = null;
+
+/* ---------- idioma (es/en) ---------- */
+function detectLang(){
+  const s = localStorage.getItem("abbdedup_lang");
+  if (s === "es" || s === "en") return s;
+  return (navigator.language || "es").toLowerCase().startsWith("es") ? "es" : "en";
+}
+let lang = detectLang();
+const T = () => UI[lang];
+const langBtn = $("#langBtn");
+function applyLang(){
+  const t = T();
+  document.documentElement.lang = t.htmlLang;
+  document.querySelectorAll("[data-i18n]").forEach(el => { const v = t[el.dataset.i18n]; if (v != null) el.textContent = v; });
+  document.querySelectorAll("[data-i18n-html]").forEach(el => { const v = t[el.dataset.i18nHtml]; if (v != null) el.innerHTML = v; });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => { const v = t[el.dataset.i18nPh]; if (v != null) el.placeholder = v; });
+  langBtn.textContent = t.langName;
+  renderFiles();
+  if (result) { renderMetrics(); renderPairs(); refresh(); }
+}
+langBtn.onclick = () => { lang = (lang === "es" ? "en" : "es"); localStorage.setItem("abbdedup_lang", lang); applyLang(); };
 const decisiones = new Map();      // n -> 'A'|'B'|'ambos'|'criba'
 let lastPrismaSvg = "";
 
@@ -201,14 +224,14 @@ function renderFiles(){
   filelist.innerHTML="";
   for(const [id,f] of state){
     const li=document.createElement("li");
-    li.innerHTML=`<span class="fname">${esc(f.name)}</span><label class="note" style="margin:0">fuente:</label>`;
+    li.innerHTML=`<span class="fname">${esc(f.name)}</span><label class="note" style="margin:0">${T().srcword}</label>`;
     const inp=document.createElement("input");inp.type="text";inp.value=f.source;inp.oninput=()=>{f.source=inp.value;};
     const rm=document.createElement("button");rm.className="rm";rm.textContent="✕";rm.title="quitar";
     rm.onclick=()=>{state.delete(id);renderFiles();};
     li.appendChild(inp);li.appendChild(rm);filelist.appendChild(li);
   }
   const n=state.size;runBtn.disabled=n===0;
-  hint.textContent=n===0?"Añade al menos un fichero.":`${n} fichero${n>1?"s":""} listo${n>1?"s":""}.`;
+  hint.textContent=n===0?T().hint0:`${n} ${n>1?T().hintN:T().hint1}.`;
 }
 drop.onclick=()=>fileInput.click();
 fileInput.onchange=()=>{addFiles([...fileInput.files]);fileInput.value="";};
@@ -283,10 +306,10 @@ function allDecided(){return result && decidedCount()===result.reviewFull.length
 function renderMetrics(){
   const {kept,removed,pending}=computeFinal();
   $("#metrics").innerHTML=[
-    ["Identificados",result.counts.total],
-    ["Duplicados retirados",removed.length],
-    ["Únicos para cribar",kept.length],
-    ["Dudosos sin resolver",pending.length],
+    [T().mId,result.counts.total],
+    [T().mDup,removed.length],
+    [T().mUniq,kept.length],
+    [T().mPend,pending.length],
   ].map(([k,v])=>`<div class="metric"><b>${v}</b><span>${k}</span></div>`).join("");
 }
 function refresh(){
@@ -303,26 +326,26 @@ function refresh(){
 function refField(r){return {t:r.title,au:(r.authors||[]).join(", "),jo:r.journal,yr:r.year,doi:r.doi,ab:r.abstract,src:r.source,pmid:r.pmid};}
 function renderPairs(){
   const box=$("#pairs");box.innerHTML="";
-  if(!result.reviewFull.length){box.innerHTML='<p class="note">No hay pares dudosos: la deduplicación fue inequívoca.</p>';return;}
+  if(!result.reviewFull.length){box.innerHTML=`<p class="note">${T().noPairs}</p>`;return;}
   for(const p of result.reviewFull){
     const A=refField(p.a),B=refField(p.b);
     const el=document.createElement("div");el.className="pair undecided";el.dataset.n=p.n;
     el.innerHTML=`
       <div class="psum">
         <span class="pn">${p.n}</span>
-        <div class="pt"><div>${esc(A.t)}</div><div class="mo">${esc(p.reason)}</div></div>
-        <span class="st">sin decidir</span>
+        <div class="pt"><div>${esc(A.t)}</div><div class="mo">${esc(reasonI18n(p.reason,lang))}</div></div>
+        <span class="st">${T().undecided}</span>
       </div>
       <div class="pbody">
         <div class="refs">
-          ${refCard("Registro A",A)}
-          ${refCard("Registro B",B)}
+          ${refCard(T().recA,A)}
+          ${refCard(T().recB,B)}
         </div>
         <div class="choices">
-          <button data-d="A">Registro A</button>
-          <button data-d="B">Registro B</button>
-          <button data-d="ambos">Mantener ambos</button>
-          <button data-d="criba">Decidir en la criba</button>
+          <button data-d="A">${T().recA}</button>
+          <button data-d="B">${T().recB}</button>
+          <button data-d="ambos">${T().keepBoth}</button>
+          <button data-d="criba">${T().inScreen}</button>
         </div>
       </div>`;
     el.querySelector(".psum").onclick=()=>el.classList.toggle("open");
@@ -337,7 +360,7 @@ function renderPairs(){
     box.appendChild(el);
   }
 }
-function labelOf(d){return {A:"conservar A",B:"conservar B",ambos:"ambos",criba:"en la criba"}[d]||"sin decidir";}
+function labelOf(d){return {A:T().lblA,B:T().lblB,ambos:T().lblBoth,criba:T().lblScreen}[d]||T().undecided;}
 function idLinks(r){
   const doi=r.doi?`<a href="https://doi.org/${esc(r.doi)}" target="_blank" rel="noopener">${esc(r.doi)}</a>`:`<span class="mo">—</span>`;
   const pmid=r.pmid?`<a href="https://pubmed.ncbi.nlm.nih.gov/${esc(r.pmid)}/" target="_blank" rel="noopener">${esc(r.pmid)}</a>`:`<span class="mo">—</span>`;
@@ -345,31 +368,34 @@ function idLinks(r){
 }
 function refCard(title,r){
   return `<div class="ref"><h4>${title}</h4>
-    <div class="rt">${esc(r.t)||"<span class='mo'>(sin título)</span>"}</div>
+    <div class="rt">${esc(r.t)||`<span class='mo'>${T().noTitle}</span>`}</div>
     <div class="rm2">${esc(r.au)}</div>
     <div class="rm2">${esc(r.jo)}${r.yr?" · "+esc(r.yr):""}</div>
-    <div class="rm2">${idLinks(r)}<br><span class="mo">fuente: ${esc(r.src)}</span></div>
-    ${r.ab?`<div class="ab">${esc(r.ab)}</div>`:`<div class="ab mo">(sin resumen)</div>`}</div>`;
+    <div class="rm2">${idLinks(r)}<br><span class="mo">${T().srcLabel} ${esc(r.src)}</span></div>
+    ${r.ab?`<div class="ab">${esc(r.ab)}</div>`:`<div class="ab mo">${T().noAbs}</div>`}</div>`;
 }
 
 /* ---------- salidas finales ---------- */
 function finalRis(){return escribirRis(computeFinal().kept);}
-function finalDupsCsv(){return toCsv(filasDuplicados(computeFinal().removed));}
-function finalReviewCsv(){return toCsv(filasRevisar(computeFinal().pending));}
-function finalInforme(){const f=computeFinal();return informe(result.srcCounts,f.kept,f.removed,f.pending);}
+function finalDupsCsv(){return toCsv(filasDuplicados(computeFinal().removed,lang));}
+function finalReviewCsv(){return toCsv(filasRevisar(computeFinal().pending,lang));}
+function finalInforme(){const f=computeFinal();return informe(result.srcCounts,f.kept,f.removed,f.pending,lang);}
 function decisionesCsv(){
-  const rows=result.reviewFull.map(p=>({n:p.n,decision:labelOf(decisiones.get(p.n)),titulo_A:p.a.title,titulo_B:p.b.title,motivo:p.reason}));
+  const H = lang==="en" ? {n:"n",decision:"decision",tA:"title_A",tB:"title_B",motivo:"reason"}
+                        : {n:"n",decision:"decision",tA:"titulo_A",tB:"titulo_B",motivo:"motivo"};
+  const rows=result.reviewFull.map(p=>({[H.n]:p.n,[H.decision]:labelOf(decisiones.get(p.n)),
+    [H.tA]:p.a.title,[H.tB]:p.b.title,[H.motivo]:reasonI18n(p.reason,lang)}));
   return toCsv(rows);
 }
 function renderDownloads(){
   const dl=$("#downloads");dl.innerHTML="";
   const mk=(t,fn)=>{const b=document.createElement("button");b.className="ghost";b.textContent=t;b.onclick=fn;dl.appendChild(b);};
-  mk("⬇ dedup.ris (únicos)",()=>download("dedup.ris",finalRis(),"application/x-research-info-systems"));
-  mk("⬇ duplicados.csv",()=>download("duplicados.csv",finalDupsCsv(),"text/csv"));
+  mk(T().dlDedup,()=>download("dedup.ris",finalRis(),"application/x-research-info-systems"));
+  mk(T().dlDups,()=>download("duplicados.csv",finalDupsCsv(),"text/csv"));
   const f=computeFinal();
-  if(f.pending.length) mk("⬇ revisar.csv (sin resolver)",()=>download("revisar.csv",finalReviewCsv(),"text/csv"));
-  if(result.reviewFull.length) mk("⬇ decisiones.csv",()=>download("decisiones.csv",decisionesCsv(),"text/csv"));
-  mk("⬇ informe.rtf (Word)",()=>download("dedup_informe.rtf",mdToRtf(finalInforme()),"application/rtf"));
+  if(f.pending.length) mk(T().dlReview,()=>download("revisar.csv",finalReviewCsv(),"text/csv"));
+  if(result.reviewFull.length) mk(T().dlDecisions,()=>download("decisiones.csv",decisionesCsv(),"text/csv"));
+  mk(T().dlReport,()=>download("dedup_informe.rtf",mdToRtf(finalInforme()),"application/rtf"));
 }
 
 /* ---------- PRISMA ---------- */
@@ -377,6 +403,7 @@ function prismaCounts(){const f=computeFinal();return {total:result.counts.total
 function renderPrisma(){lastPrismaSvg=prismaSvg(prismaCounts());$("#prisma").innerHTML=lastPrismaSvg;}
 function prismaSvg(c){
   const INK="#000",GREY="#555";
+  const L=UI[lang];   // etiquetas por idioma (T local es el helper de texto SVG)
   const src=Object.entries(c.porFuente);
   const box=(x,y,w,h,d)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="#fff" stroke="${INK}" stroke-width="1.4"${d?' stroke-dasharray="4 3"':''}/>`;
   const T=(x,y,s,o="")=>`<text x="${x}" y="${y}" font-family="Montserrat,sans-serif" font-size="12" fill="${INK}" ${o}>${s}</text>`;
@@ -387,30 +414,30 @@ function prismaSvg(c){
   const idLines=src.map(([s,n])=>`&#8226; ${esc(s)} (n = ${n})`);
   const bh=40+idLines.length*15;
   p.push(box(colL,y,colLw,bh));
-  p.push(T(colL+10,y+18,"Registros identificados de bases de datos",'font-weight="700"'));
-  p.push(T(colL+10,y+34,`Total (n = ${c.total})`));
+  p.push(T(colL+10,y+18,L.prIdentified,'font-weight="700"'));
+  p.push(T(colL+10,y+34,`${L.prTotal} (n = ${c.total})`));
   idLines.forEach((l,i)=>p.push(T(colL+20,y+50+i*15,`<tspan fill="${GREY}">${l}</tspan>`)));
   p.push(box(colR,y,colRw,74));
-  p.push(T(colR+10,y+18,"Registros eliminados antes del cribado:",'font-weight="700"'));
-  p.push(T(colR+10,y+36,`Duplicados eliminados (n = ${c.dup})`));
-  p.push(T(colR+10,y+51,"Marcados no elegibles por automatización (n = 0)"));
-  p.push(T(colR+10,y+66,"Eliminados por otros motivos (n = 0)"));
+  p.push(T(colR+10,y+18,L.prRemoved,'font-weight="700"'));
+  p.push(T(colR+10,y+36,`${L.prDupRemoved} (n = ${c.dup})`));
+  p.push(T(colR+10,y+51,`${L.prAuto} (n = 0)`));
+  p.push(T(colR+10,y+66,`${L.prOther} (n = 0)`));
   p.push(aH(colL+colLw,colR,y+bh/2));
   const idTop=y;y=idTop+bh+26;p.push(aV(cx,idTop+bh,y));
   const scr=y;p.push(box(colL,y,colLw,44));
-  p.push(T(colL+10,y+18,"Registros cribados",'font-weight="700"'));
+  p.push(T(colL+10,y+18,L.prScreened,'font-weight="700"'));
   p.push(T(colL+10,y+35,`(n = ${c.screened})`));
   if(c.pending){p.push(box(colR,y,colRw,44,true));
-    p.push(T(colR+10,y+17,`<tspan fill="${GREY}">Dudosos sin resolver</tspan>`));
-    p.push(T(colR+10,y+34,`<tspan fill="${GREY}">(n = ${c.pending}; resolver en el cribado)</tspan>`));}
+    p.push(T(colR+10,y+17,`<tspan fill="${GREY}">${L.prPending}</tspan>`));
+    p.push(T(colR+10,y+34,`<tspan fill="${GREY}">(n = ${c.pending}; ${L.prPendingTail})</tspan>`));}
   y=scr+44+22;p.push(aV(cx,scr+44,y));
   p.push(box(colL,y,colLw,34,true));
-  p.push(T(colL+10,y+21,`<tspan fill="${GREY}">Cribado y selección → herramienta de revisión</tspan>`));
+  p.push(T(colL+10,y+21,`<tspan fill="${GREY}">${L.prToScreening}</tspan>`));
   y+=34;const H=y+16;
   const band=(yy,hh,t)=>`<rect x="0" y="${yy}" width="${lbl}" height="${hh}" fill="#F0F0F0"/><text x="${lbl/2}" y="${yy+hh/2}" font-family="Montserrat,sans-serif" font-size="12" font-weight="700" fill="${INK}" text-anchor="middle" transform="rotate(-90 ${lbl/2} ${yy+hh/2})">${t}</text>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;height:auto">
     <defs><marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="${GREY}"/></marker></defs>
-    <rect width="${W}" height="${H}" fill="#fff"/>${band(idTop,bh,"Identificación")}${band(scr,44,"Cribado")}${p.join("")}</svg>`;
+    <rect width="${W}" height="${H}" fill="#fff"/>${band(idTop,bh,L.prBandId)}${band(scr,44,L.prBandScreen)}${p.join("")}</svg>`;
 }
 $("#dlPrisma").onclick=()=>{if(lastPrismaSvg)download("prisma_identificacion.svg",lastPrismaSvg,"image/svg+xml");};
 $("#dlPrismaPng").onclick=()=>{
@@ -486,6 +513,9 @@ function writeStoredZip(files){
   const out=new Uint8Array(total);let o=0;for(const p of parts){out.set(p,o);o+=p.length;}
   return new Blob([out],{type:"application/vnd.openxmlformats-officedocument.presentationml.presentation"});
 }
+
+/* ---------- init: aplica el idioma detectado (o guardado) al cargar ---------- */
+applyLang();
 </script>
 </body>
 </html>
