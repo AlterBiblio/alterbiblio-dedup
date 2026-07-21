@@ -96,6 +96,11 @@
   .err{color:#8a1010;background:rgba(138,16,16,.06);border:1px solid rgba(138,16,16,.3);border-radius:5px;padding:11px 13px;white-space:pre-wrap;margin-top:12px}
   .hidden{display:none}
   footer{margin-top:34px;color:var(--sec);font-size:.82rem;border-top:1px solid var(--line);padding-top:14px}
+  .cite{margin-bottom:14px}
+  .cite .citehead{font-family:var(--emph);font-weight:700;text-transform:uppercase;letter-spacing:.8px;font-size:.68rem;color:var(--ink);margin:0 0 6px}
+  .citebox{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;background:var(--off);border:1px solid var(--line);border-radius:5px;padding:10px 12px;margin:0}
+  .citebox #citetext{flex:1;min-width:220px;color:var(--ink);font-size:.82rem;line-height:1.5}
+  .citebox .citebtn{flex:0 0 auto;padding:6px 12px;font-size:.66rem}
 </style>
 </head>
 <body>
@@ -177,6 +182,10 @@
   </section>
 
   <footer>
+    <div class="cite">
+      <p class="citehead" data-i18n="citeHead">Cómo citar</p>
+      <p class="citebox"><span id="citetext">García-Puente M. alterbiblio-dedup (Version 1.0.0) [software]. AlterBiblio; 2026. <a href="https://doi.org/10.5281/zenodo.21469293" target="_blank" rel="noopener">https://doi.org/10.5281/zenodo.21469293</a></span><button class="ghost citebtn" id="citecopy" data-i18n="citeCopy">Copiar</button></p>
+    </div>
     <p><span data-i18n="footerTool">Herramienta abierta de</span> <b><a href="https://alterbiblio.com" target="_blank" rel="noopener">AlterBiblio</a></b> <span data-i18n="footerRest">· deduplicación conservadora ·</span> <a href="https://github.com/AlterBiblio/alterbiblio-dedup" target="_blank" rel="noopener" data-i18n="footerGh">código y algoritmo en GitHub</a>. <span data-i18n="footerPrinciple">El DOI por sí solo nunca fusiona; los registros de ensayo se mantienen aparte; los pares ambiguos van a decisión humana.</span></p>
     <p id="artlink" class="hidden"></p>
     <p>© AlterBiblio (Alter Biblio S.L.). <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">Creative Commons BY-NC-SA 4.0</a>.</p>
@@ -212,6 +221,15 @@ function applyLang(){
   if (result) { renderMetrics(); renderPairs(); refresh(); }
 }
 langBtn.onclick = () => { lang = (lang === "es" ? "en" : "es"); localStorage.setItem("abbdedup_lang", lang); applyLang(); };
+
+// Copiar la cita al portapapeles
+$("#citecopy").onclick = () => {
+  const txt = $("#citetext").textContent.replace(/\s+/g, " ").trim();
+  navigator.clipboard.writeText(txt).then(() => {
+    const b = $("#citecopy"); b.textContent = UI[lang].citeCopied;
+    setTimeout(() => { b.textContent = UI[lang].citeCopy; }, 1800);
+  }).catch(() => {});
+};
 const decisiones = new Map();      // n -> 'A'|'B'|'ambos'|'criba'
 let lastPrismaSvg = "";
 
