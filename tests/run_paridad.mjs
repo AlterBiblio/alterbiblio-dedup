@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join, isAbsolute } from "node:path";
 import { deduplicar } from "../docs/engine/index.js";
+import { HEADERS } from "../docs/engine/i18n.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SCRIPT = join(HERE, "..", "scripts", "dedup.py");
@@ -30,10 +31,9 @@ function csv(cabecera, filas) {
   return lineas.map(f => f.map(campoCsv).join(",") + "\r\n").join("");
 }
 
-const COLS_DUPS = ["motivo", "fuente_retirada", "titulo_retirado", "doi_retirado",
-  "año_retirado", "fuente_conservada", "titulo_conservado", "doi_conservado"];
-const COLS_REV = ["n", "motivo_duda", "fuente_A", "titulo_A", "doi_A", "año_A",
-  "fuente_B", "titulo_B", "doi_B", "año_B"];
+// Derivadas de HEADERS (es) para que el harness no se desfase del motor.
+const COLS_DUPS = Object.values(HEADERS.duplicados.es);
+const COLS_REV = Object.values(HEADERS.revisar.es);
 
 function primeraDiferencia(py, js) {
   const a = py.split("\n"), b = js.split("\n");

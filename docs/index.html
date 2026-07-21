@@ -72,6 +72,8 @@
   .psum .pt .mo{color:var(--sec);font-size:.82rem}
   .psum .st{font-family:var(--emph);font-weight:700;text-transform:uppercase;font-size:.66rem;letter-spacing:.6px;padding:3px 7px;border-radius:100px;border:1px solid var(--line);color:var(--sec);white-space:nowrap;align-self:center}
   .pair.done .st{border-color:var(--ink);color:var(--ink)}
+  .psum .bpos{font-family:var(--emph);font-weight:700;text-transform:uppercase;font-size:.6rem;letter-spacing:.5px;padding:2px 7px;border-radius:100px;background:var(--ink);color:var(--white);white-space:nowrap;align-self:center}
+  .pairnote{color:var(--sec);font-size:.82rem;margin:2px 0 10px;border-left:3px solid var(--ink);padding-left:9px}
   .pbody{display:none;border-top:1px solid var(--line);padding:12px 13px}
   .pair.open .pbody{display:block}
   .refs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -184,6 +186,7 @@
 <script type="module">
 import { deduplicar, escribirRis, filasDuplicados, filasRevisar, informe } from "./engine/index.js";
 import { UI, reasonI18n, estadoLabel, HEADERS } from "./engine/i18n.js";
+import { excelMaestroFiles } from "./engine/xlsx.js";
 
 const $ = s => document.querySelector(s);
 const state = new Map();           // id -> {name,text,source}
@@ -277,7 +280,9 @@ runBtn.onclick=()=>{
   try{
     result=deduplicar([...state.values()]);
     decisiones.clear();
-    for(const p of result.reviewFull) decisiones.set(p.n,null);   // sin decidir
+    // Los «posible duplicado» (2 identificadores distintos) se pre-marcan como «mantener
+    // ambos» —por diseño se conservan enteros—; el resto queda sin decidir para la persona.
+    for(const p of result.reviewFull) decisiones.set(p.n, esPosibleConservar(p.reason)?"ambos":null);
     renderMetrics(); renderPairs();
     unlock("s2",true); unlock("s3",true); unlock("s4",true); unlock("s5",true); unlock("s6",false);
     refresh();
@@ -324,17 +329,28 @@ function refresh(){
 
 /* ---------- dudosos ---------- */
 function refField(r){return {t:r.title,au:(r.authors||[]).join(", "),jo:r.journal,yr:r.year,doi:r.doi,ab:r.abstract,src:r.source,pmid:r.pmid,pt:(r.ptypes||[]).join(", ")};}
+// Regla de oro (María): dos identificadores distintos (DOIs, ensayo, accesión) ⇒ el par es
+// un «posible duplicado» que por diseño se conserva ENTERO. Estos no exigen decisión: se
+// pre-marcan como «mantener ambos». La revisión interactiva queda solo para la ambigüedad
+// genuina (vol+pág discrepantes, sin identificador común, ¿respuesta/comentario?).
+function esPosibleConservar(reason){return /conservar ambos|mismo ensayo/i.test(reason||"");}
 function renderPairs(){
   const box=$("#pairs");box.innerHTML="";
   if(!result.reviewFull.length){box.innerHTML=`<p class="note">${T().noPairs}</p>`;return;}
+  if(result.reviewFull.some(p=>esPosibleConservar(p.reason))){
+    const n=document.createElement("p");n.className="pairnote";n.textContent=T().posibleNota;box.appendChild(n);
+  }
   for(const p of result.reviewFull){
     const A=refField(p.a),B=refField(p.b);
-    const el=document.createElement("div");el.className="pair undecided";el.dataset.n=p.n;
+    const pos=esPosibleConservar(p.reason);
+    const d=decisiones.get(p.n);
+    const el=document.createElement("div");el.className="pair"+(d?" done":" undecided");el.dataset.n=p.n;
     el.innerHTML=`
       <div class="psum">
         <span class="pn">${p.n}</span>
         <div class="pt"><div>${esc(A.t)}</div><div class="mo">${esc(reasonI18n(p.reason,lang))}</div></div>
-        <span class="st">${T().undecided}</span>
+        ${pos?`<span class="bpos">${T().badgePosible}</span>`:""}
+        <span class="st">${d?labelOf(d):T().undecided}</span>
       </div>
       <div class="pbody">
         <div class="refs">
@@ -348,6 +364,7 @@ function renderPairs(){
           <button data-d="criba">${T().inScreen}</button>
         </div>
       </div>`;
+    el.querySelectorAll(".choices button").forEach(b=>{if(b.dataset.d===d)b.classList.add("sel");});
     el.querySelector(".psum").onclick=()=>el.classList.toggle("open");
     el.querySelectorAll(".choices button").forEach(b=>b.onclick=(ev)=>{
       ev.stopPropagation();
@@ -418,6 +435,22 @@ function renderDownloads(){
   if(f.pending.length) mk(T().dlReview,()=>download("revisar.csv",finalReviewCsv(),"text/csv"));
   if(result.reviewFull.length) mk(T().dlDecisions,()=>download("decisiones.csv",decisionesCsv(),"text/csv"));
   mk(T().dlReport,()=>download("dedup_informe.rtf",mdToRtf(finalInforme()),"application/rtf"));
+  mk(T().dlExcel,dlExcelMaestro);
+}
+// Excel maestro (3 hojas, espejo del CLI): refleja tus decisiones — los pares
+// conservados (ambos / sin resolver) van anotados como «posible duplicado».
+function dlExcelMaestro(){
+  const f=computeFinal();
+  const rev=[];
+  for(const p of result.reviewFull){
+    const d=decisiones.get(p.n);
+    if(d==="ambos"||d==="criba"||d==null) rev.push({r:p.a,other:p.b,reason:p.reason});
+  }
+  const xml=excelMaestroFiles(f.kept,f.removed,rev,result.counts.porFuente,lang);
+  const enc=new TextEncoder(), files=new Map();
+  for(const [k,v] of xml) files.set(k,enc.encode(v));
+  download(T().dlExcelFile,writeStoredZip(files),
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 }
 
 /* ---------- PRISMA ---------- */

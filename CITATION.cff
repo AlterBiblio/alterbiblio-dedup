@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+title: alterbiblio-dedup
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: María
+    family-names: García-Puente
+    orcid: 'https://orcid.org/0000-0002-6521-665X'
+    affiliation: Alter Biblio SL, Madrid, Spain
+repository-code: 'https://github.com/AlterBiblio/alterbiblio-dedup'
+url: 'https://alterbiblio.github.io/alterbiblio-dedup/'
+abstract: >-
+  Conservative, transparent and traceable deduplication of
+  bibliographic search exports (PubMed, Embase, Cochrane
+  CENTRAL, Scopus, Web of Science) before screening. A
+  shared DOI alone never merges records; trial-registry
+  entries are kept separate; ambiguous pairs are referred
+  for human decision. Runs entirely in the browser or as a
+  dependency-free Python 3 command-line tool.
+keywords:
+  - deduplication
+  - systematic review
+  - bibliographic databases
+  - PRISMA
+  - reference management
+license: CC-BY-NC-SA-4.0
