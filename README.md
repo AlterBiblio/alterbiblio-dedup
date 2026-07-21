@@ -1,70 +1,76 @@
 # alterbiblio-dedup
 
-Deduplicación **conservadora y trazable** de resultados de búsqueda bibliográfica
-(PubMed, Embase, CENTRAL, Scopus, Web of Science…) previa al cribado en Rayyan,
-Covidence o equivalente, con recuentos y diagrama listos para PRISMA 2020.
+🇪🇸 [Léeme en español](README.es.md)
 
-Conservative, traceable deduplication of bibliographic search results prior to
-screening, with PRISMA-ready counts.
+**Conservative, traceable** deduplication of bibliographic search results
+(PubMed, Embase, CENTRAL, Scopus, Web of Science…) prior to screening in Rayyan,
+Covidence or similar, with PRISMA 2020-ready counts and flow diagram.
 
-> **En desarrollo — en pruebas, no anunciado. / Under development — not yet announced.**
+> **Under development — in testing, not yet announced.**
 
-Herramienta de [AlterBiblio](https://alterbiblio.com).
+A tool by [AlterBiblio](https://alterbiblio.com).
 
-## Probar en el navegador (sin instalar nada)
+## Try it in your browser (nothing to install)
 
 **→ https://alterbiblio.github.io/alterbiblio-dedup/**
 
-Todo se procesa **en tu navegador**: ningún fichero sale de tu ordenador. No hay
-servidor, ni cuenta, ni instalación.
+Everything is processed **in your browser**: no file leaves your computer. No
+server, no account, no installation.
 
-### Cómo se usa
+### How to use it
 
-1. **Sube una exportación por base de datos** (un fichero por fuente). Formatos
-   admitidos: RIS (`.ris`), MEDLINE/PubMed (`.nbib`), PubMed XML (`.xml`),
-   BibTeX (`.bib`) y CSV. La etiqueta de cada fichero es el nombre de la fuente
-   en el recuento y en la matriz de solapamiento.
-2. Pulsa **Deduplicar**. Verás los duplicados retirados, los únicos y los
-   **dudosos**.
-3. **Revisa los dudosos**: la herramienta *no fusiona a ciegas*. Para cada par
-   decides *Registro A*, *Registro B*, *Mantener ambos* o *Decidir en la criba*.
-4. Descarga el `dedup.ris` (únicos para cribar), los CSV de duplicados y
-   decisiones, el **diagrama PRISMA 2020** (SVG/PNG/PPT editable) y el informe.
+1. **Upload one export per database** (one file per source). Accepted formats:
+   RIS (`.ris`), MEDLINE/PubMed (`.nbib`), PubMed XML (`.xml`), BibTeX (`.bib`)
+   and CSV. Each file's label is the source name in the counts and in the
+   overlap matrix.
+2. Click **Deduplicate**. You will see the removed duplicates, the unique
+   records and the **ambiguous** pairs.
+3. **Review the ambiguous pairs**: the tool *does not merge blindly*. For each
+   pair you decide *Record A*, *Record B*, *Keep both* or *Decide at screening*.
+4. Download `dedup.ris` (unique records for screening), the duplicates and
+   decisions CSVs, the master screening spreadsheet, the **PRISMA 2020 flow
+   diagram** (SVG/PNG/editable PPT) and the report.
 
-Principio conservador: **el DOI por sí solo nunca fusiona**; los registros de
-ensayo clínico se mantienen aparte; los pares ambiguos van a decisión humana.
+Conservative principle: **a DOI alone never merges**; clinical-trial registry
+entries are kept separate; ambiguous pairs are referred for human decision.
 
-## Línea de comandos (opcional)
+## Command line (optional)
 
-Equivalente exacto de la web, sin dependencias externas. Requiere Python 3.
+Exact equivalent of the web tool, with no external dependencies. Requires
+Python 3.
 
 ```bash
 python3 scripts/dedup.py embase.ris pubmed.nbib central.ris \
-  --source-names Embase,PubMed,CENTRAL --out salida/
+  --source-names Embase,PubMed,CENTRAL --out output/
 ```
 
-Genera `dedup.ris`, `duplicados.csv`, `revisar.csv` e `dedup_informe.md` en la
-carpeta de salida. Con `--decisiones decisiones.csv` reaplica decisiones humanas
-de una pasada previa.
+Produces `dedup.ris`, `duplicados.csv`, `revisar.csv` and `dedup_informe.md` in
+the output folder. With `--decisiones decisiones.csv` it reapplies human
+decisions from a previous pass.
 
-## Dos motores, una sola lógica
+## Two engines, one logic
 
-La herramienta está implementada dos veces —JavaScript (navegador) y Python
-(línea de comandos)— y ambas se validan contra una batería compartida que exige
-**salida idéntica byte a byte**. Python es la referencia.
+The tool is implemented twice —JavaScript (browser) and Python (command line)—
+and both are validated against a shared test battery that requires
+**byte-for-byte identical output**. Python is the reference.
 
 ```bash
-npm run test:js                 # tests JS + paridad + unitarios
-python3 tests/run_shared.py     # batería compartida (Python)
+npm run test:js                 # JS tests + parity + unit tests
+python3 tests/run_shared.py     # shared battery (Python)
 python3 tests/benchmark/run_benchmark.py data/asysd/Diabetes_duplicates_labelled.csv
 ```
 
-Los datasets gold-standard de evaluación (ASySD, Hair et al. 2023) se descargan
-de OSF (`osf.io/c9evs`) y no se incluyen en el repositorio.
+The gold-standard evaluation datasets (ASySD, Hair et al. 2023) are downloaded
+from OSF (`osf.io/c9evs`) and are not included in the repository.
 
-## Licencia
+## Citation
 
-© 2026 Alter Biblio S.L. Código, algoritmo y documentación bajo
+If you use this tool, please cite it using the metadata in
+[`CITATION.cff`](CITATION.cff).
+
+## Licence
+
+© 2026 Alter Biblio S.L. Code, algorithm and documentation under
 [Creative Commons Attribution-NonCommercial-ShareAlike 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/)
-(CC BY-NC-SA 4.0): cítese la fuente, uso no comercial, y compartir bajo la misma
-licencia.
+(CC BY-NC-SA 4.0): cite the source, non-commercial use, and share alike under
+the same licence.
