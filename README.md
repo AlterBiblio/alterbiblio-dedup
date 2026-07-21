@@ -6,8 +6,6 @@
 (PubMed, Embase, CENTRAL, Scopus, Web of Science…) prior to screening in Rayyan,
 Covidence or similar, with PRISMA 2020-ready counts and flow diagram.
 
-> **Under development — in testing, not yet announced.**
-
 A tool by [AlterBiblio](https://alterbiblio.com).
 
 ## Try it in your browser (nothing to install)

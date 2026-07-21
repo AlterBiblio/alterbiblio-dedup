@@ -6,8 +6,6 @@ Deduplicación **conservadora y trazable** de resultados de búsqueda bibliográ
 (PubMed, Embase, CENTRAL, Scopus, Web of Science…) previa al cribado en Rayyan,
 Covidence o equivalente, con recuentos y diagrama listos para PRISMA 2020.
 
-> **En desarrollo — en pruebas, no anunciado.**
-
 Herramienta de [AlterBiblio](https://alterbiblio.com).
 
 ## Probar en el navegador (sin instalar nada)
