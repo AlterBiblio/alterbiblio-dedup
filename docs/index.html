@@ -55,6 +55,8 @@
   /* botón sistema */
   button.btn{font-family:var(--emph);font-weight:900;text-transform:uppercase;letter-spacing:1px;background:var(--ink);color:var(--white);border:0;border-radius:5px;padding:11px 20px;font-size:.85rem;cursor:pointer}
   button.btn:disabled{opacity:.35;cursor:not-allowed}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;vertical-align:-2px;margin-right:7px;animation:abbspin .7s linear infinite}
+  @keyframes abbspin{to{transform:rotate(360deg)}}
   button.ghost{font-family:var(--emph);font-weight:700;text-transform:uppercase;letter-spacing:.8px;font-size:.72rem;background:var(--white);border:1px solid var(--ink);border-radius:5px;padding:9px 13px;cursor:pointer;color:var(--ink)}
   .runbar{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:4px}
   .runbar .hint{color:var(--sec);font-size:.9rem}
@@ -309,8 +311,15 @@ function mdToRtf(md){
 }
 
 /* ---------- ejecutar ---------- */
-runBtn.onclick=()=>{
+runBtn.onclick=async ()=>{
   $("#error").classList.add("hidden");
+  const runLabel = runBtn.textContent;
+  runBtn.disabled = true;
+  runBtn.innerHTML = `<span class="spin"></span>${lang==="es"?"Procesando…":"Processing…"}`;
+  // Dejar que el navegador PINTE el spinner antes del trabajo síncrono pesado (deduplicar bloquea
+  // el hilo principal). Doble requestAnimationFrame = garantía de un frame pintado. El spinner es
+  // CSS por transform (hilo del compositor), así que sigue girando aunque el JS esté bloqueado.
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
   try{
     result=deduplicar([...state.values()]);
     decisiones.clear(); sugeridas.clear();
@@ -323,6 +332,7 @@ runBtn.onclick=()=>{
     refresh();
     $("#s2").scrollIntoView({behavior:"smooth",block:"start"});
   }catch(e){ $("#error").textContent=(e&&e.message)?e.message:String(e); $("#error").classList.remove("hidden"); }
+  finally{ runBtn.textContent = runLabel; runBtn.disabled = false; }
 };
 
 /* ---------- aplicar decisiones -> conjunto final ---------- */
