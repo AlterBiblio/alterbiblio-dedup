@@ -5,7 +5,7 @@ Excel maestro del cribado (modelo de la documentalista): 3 hojas.
 
   1. Referencias           — TODOS los registros conservados, ordenados por título
                              (los parecidos quedan juntos), con tipo de estudio provisional,
-                             fiabilidad y la columna ⚠️ Posible duplicado (con cuál y por qué).
+                             fiabilidad y la columna ⚠️ Posible duplicado o relacionado (con cuál y por qué).
   2. Duplicados eliminados — los retirados, con la regla que los casó y el registro conservado.
   3. Resumen PRISMA        — recuentos por base + identificados/duplicados/únicos/posibles.
 
@@ -48,7 +48,7 @@ def _posibles_map(review):
     for r, other, reason in review:
         conf = confianza_par(r, other, reason)
         for a, b in [(r, other), (other, r)]:
-            txt = f"Posible duplicado de «{_short(b['title'], 55)}» — {reason} · Confianza: {conf}"
+            txt = f"Posible duplicado o relacionado con «{_short(b['title'], 55)}» — {reason} · Confianza: {conf}"
             m.setdefault(id(a), []).append(txt)
     return m
 
@@ -73,7 +73,7 @@ def escribir_excel(kept, removed, review, counts, path):
     ws = wb.active; ws.title = "Referencias"
     headers = ["Nº", "Incluir?", "Autores", "Año", "Título", "Revista",
                "Tipo de estudio (provisional)", "Fiabilidad", "DOI", "PMID",
-               "Fuente(s)", "⚠️ Posible duplicado"]
+               "Fuente(s)", "⚠️ Posible duplicado o relacionado (conservado)"]
     _cab(ws, headers)
     posibles = _posibles_map(review)
     orden = sorted(kept, key=lambda r: r["ntitle"])
@@ -113,7 +113,7 @@ def escribir_excel(kept, removed, review, counts, path):
         ("Total identificados", total),
         ("Duplicados eliminados", len(removed)),
         ("Registros únicos para cribado", len(kept)),
-        ("Posibles duplicados anotados (conservados)", len(review)),
+        ("Posibles duplicados o relacionados anotados (conservados)", len(review)),
     ]
     for i, (k, v) in enumerate(filas, start=2):
         _fila(ws3, i, [k, v])

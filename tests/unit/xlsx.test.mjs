@@ -32,7 +32,7 @@ test("hoja Referencias: cabecera, validación, autofiltro y sombreado de posible
   assert.ok(s1.includes("Tipo de estudio (provisional)"));
   assert.ok(s1.includes("⚠️ Posible duplicado"));
   assert.ok(s1.includes("Ensayo clínico aleatorizado")); // clasificación de kept[0]
-  assert.ok(s1.includes("Posible duplicado de")); // anotación del par
+  assert.ok(s1.includes("Posible duplicado o relacionado con")); // anotación del par
   assert.ok(/<dataValidation type="list"/.test(s1));
   assert.ok(/<autoFilter ref="A1:L3"/.test(s1)); // 2 filas de datos + cabecera
   assert.ok(/state="frozen"/.test(s1));
@@ -53,5 +53,5 @@ test("bilingüe: en traduce hojas, cabeceras y etiquetas del clasificador", () =
   const s1 = f.get("xl/worksheets/sheet1.xml");
   assert.ok(s1.includes("Study type (provisional)"));
   assert.ok(s1.includes("Randomized controlled trial")); // etiqueta traducida
-  assert.ok(s1.includes("Possible duplicate of"));
+  assert.ok(s1.includes("Possible duplicate or related to"));
 });
