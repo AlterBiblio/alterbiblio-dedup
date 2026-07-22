@@ -34,6 +34,8 @@ const CASES = [
    "same vol+page+author+year but different titles 0.50 (review)"],
   ["mismo ensayo clínico (NCT03998579) — posible duplicado (comprobar cada uno en su fuente)",
    "same clinical trial (NCT03998579) — possible duplicate (check each in its source)"],
+  ["mismo ensayo clínico (NCT03998579) — registros de ensayo idénticos (fusionados)",
+   "same clinical trial (NCT03998579) — identical trial-registry records (merged)"],
   ["títulos casi idénticos (variación de escritura) pero DOIs distintos — posible duplicado (comprobar cada uno en su fuente, p. ej. por su DOI)",
    "near-identical titles (spelling variant) but different DOIs — possible duplicate (check each in its source, e.g. by its DOI)"],
   ["títulos casi idénticos (variación de escritura, Jaro-Winkler) — posible duplicado (sin DOI/PMID/autor común)",

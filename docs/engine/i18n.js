@@ -44,6 +44,8 @@ const REASON_EN = [
     m => `same vol+page+author+year but different titles ${m[1]} (review)`],
   [/^mismo ensayo clínico \((.+?)\) — posible duplicado \(comprobar cada uno en su fuente\)$/,
     m => `same clinical trial (${m[1]}) — possible duplicate (check each in its source)`],
+  [/^mismo ensayo clínico \((.+?)\) — registros de ensayo idénticos \(fusionados\)$/,
+    m => `same clinical trial (${m[1]}) — identical trial-registry records (merged)`],
   [/^títulos casi idénticos \(variación de escritura\) pero DOIs distintos — posible duplicado \(comprobar cada uno en su fuente, p. ej. por su DOI\)$/,
     () => "near-identical titles (spelling variant) but different DOIs — possible duplicate (check each in its source, e.g. by its DOI)"],
   [/^títulos casi idénticos \(variación de escritura, Jaro-Winkler\) — posible duplicado \(sin DOI\/PMID\/autor común\)$/,

@@ -207,7 +207,7 @@ def comment_kind(title):
 # ------------------------------------------------------------------ record model
 def rec(source, title="", doi="", year="", authors=None, journal="", volume="",
         issue="", spage="", pmid="", abstract="", extra=None, url="", accession="", ptypes=None,
-        eid=""):
+        eid="", keywords=""):
     return {"source": source, "title": (title or "").strip(),
             "ntitle": norm_title(title), "doi": norm_doi(doi), "year": first4(year),
             "authors": authors or [], "fauthor": first_author_last(authors or []),
@@ -221,7 +221,7 @@ def rec(source, title="", doi="", year="", authors=None, journal="", volume="",
             # mdoi: DOI de EMPAREJAMIENTO (el CN de Cochrane cuenta como "sin DOI").
             "mdoi": match_doi(norm_doi(doi)),
             # nct: nº de ensayo clínico, reconciliado desde varios campos.
-            "nct": extract_nct(title, abstract, url, accession, doi, journal),
+            "nct": extract_nct(title, abstract, url, accession, doi, journal, keywords),
             # url/accession: enlace al registro en la base de origen y su nº de accesión
             # (Embase UR/U2, etc.). Puramente informativos (verificación y Excel);
             # NO participan en el emparejamiento salvo el NCT que sí sale de accession/url.
@@ -285,7 +285,7 @@ def parse_ris(text, source):
                        authors=f.get("AU", f.get("A1", [])), journal=g("JO", "JF", "T2", "JA"),
                        volume=g("VL"), issue=g("IS"), spage=g("SP"),
                        pmid=pmid, abstract=g("AB", "N2"), url=url, accession=accession,
-                       ptypes=ptypes, eid=eid))
+                       ptypes=ptypes, eid=eid, keywords=" ".join(f.get("KW", []))))
     return out
 
 def parse_medline(text, source):
@@ -660,14 +660,24 @@ def dedup(records, merge_thr=0.5, review_thr=0.3, prio=None):
                     dup, reason = c, "vol+pág+autor+año"
                 else:
                     unsure, ureason = c, f"mismo vol+pág+autor+año pero títulos distintos {title_sim(r['ntitle'], c['ntitle']):.2f} (revisar)"
-        # 6.5) mismo nº de ensayo clínico (NCT): posible duplicado, SIEMPRE conservar ambos.
-        #      Un ensayo genera varias publicaciones (protocolo, resultados, análisis secundario)
-        #      que comparten NCT sin ser el mismo artículo -> nunca se fusiona, se anota. El
-        #      registro de ClinicalTrials.gov en sí (is_registry) va a su brazo aparte, no aquí.
-        if not dup and not unsure and r["nct"]:
+        # 6.5) mismo nº de ensayo clínico (NCT):
+        #  - Dos REGISTROS de ensayo con el mismo NCT = la misma inscripción (la misma ficha de
+        #    ClinicalTrials.gov indexada en dos bases, p. ej. Embase y CENTRAL) -> se FUSIONA en un
+        #    único registro, enriquecido con los datos de ambos (decisión de María, 22/07). El NCT
+        #    de Embase suele venir sólo en el campo KW, ahora incorporado a extract_nct.
+        #  - Mismo NCT en documentos de tipo distinto (registro vs artículo) o en dos publicaciones
+        #    del ensayo (protocolo/resultados) NO se fusiona -> a revisión (documentos distintos que
+        #    comparten NCT).
+        if not dup and r["nct"]:
             for c in by_nct.get(r["nct"], []):
-                if c is r or kind_block(r, c) == "registry": continue
-                unsure, ureason = c, f"mismo ensayo clínico ({r['nct']}) — posible duplicado (comprobar cada uno en su fuente)"; break
+                if c is r: continue
+                if rec_kind(r) == "registry" and rec_kind(c) == "registry":
+                    dup, reason = c, f"mismo ensayo clínico ({r['nct']}) — registros de ensayo idénticos (fusionados)"
+                    unsure = ureason = None
+                    break
+                if kind_block(r, c) == "registry": continue   # registro vs artículo: brazo aparte
+                if not unsure:
+                    unsure, ureason = c, f"mismo ensayo clínico ({r['nct']}) — posible duplicado (comprobar cada uno en su fuente)"
         # 7) título casi idéntico -> dudoso. Señal doble: Jaccard de palabras >=0,9 O Jaro-Winkler
         #    >=0,95 (este último pilla variaciones de escritura: guiones, erratas, una palabra). Si
         #    los DOIs reales difieren, es la regla de oro: posible duplicado que se conserva.

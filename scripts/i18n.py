@@ -49,6 +49,8 @@ _REASON_EN = [
      lambda m: f"same vol+page+author+year but different titles {m.group(1)} (review)"),
     (re.compile(r"^mismo ensayo clínico \((.+?)\) — posible duplicado \(comprobar cada uno en su fuente\)$"),
      lambda m: f"same clinical trial ({m.group(1)}) — possible duplicate (check each in its source)"),
+    (re.compile(r"^mismo ensayo clínico \((.+?)\) — registros de ensayo idénticos \(fusionados\)$"),
+     lambda m: f"same clinical trial ({m.group(1)}) — identical trial-registry records (merged)"),
     (re.compile(r"^títulos casi idénticos \(variación de escritura\) pero DOIs distintos — posible duplicado \(comprobar cada uno en su fuente, p. ej. por su DOI\)$"),
      lambda m: "near-identical titles (spelling variant) but different DOIs — possible duplicate (check each in its source, e.g. by its DOI)"),
     (re.compile(r"^títulos casi idénticos \(variación de escritura, Jaro-Winkler\) — posible duplicado \(sin DOI/PMID/autor común\)$"),

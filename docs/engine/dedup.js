@@ -323,16 +323,24 @@ export function dedup(records, { mergeThr = 0.5, reviewThr = 0.3, prio = {} } = 
         }
       }
     }
-    // 6.5) mismo nº de ensayo clínico (NCT): posible duplicado, SIEMPRE conservar ambos.
-    //      Un ensayo genera varias publicaciones (protocolo, resultados, análisis secundario)
-    //      que comparten NCT sin ser el mismo artículo -> nunca se fusiona, se anota. El
-    //      registro de ClinicalTrials.gov en sí (registry) va a su brazo aparte, no aquí.
-    if (!dup && !unsure && r.nct) {
+    // 6.5) mismo nº de ensayo clínico (NCT): dos REGISTROS de ensayo con el mismo NCT = la misma
+    //      inscripción (misma ficha de ClinicalTrials.gov indexada en dos bases) -> se FUSIONA en un
+    //      único registro (ver dedup.py). Mismo NCT en documentos de tipo distinto (registro vs
+    //      artículo) o en dos publicaciones del ensayo (protocolo/resultados) -> a revisión.
+    if (!dup && r.nct) {
       for (const c of byNct.get(r.nct) ?? []) {
-        if (c === r || kindBlock(r, c) === "registry") continue;
-        unsure = c;
-        ureason = `mismo ensayo clínico (${r.nct}) — posible duplicado (comprobar cada uno en su fuente)`;
-        break;
+        if (c === r) continue;
+        if (recKind(r) === "registry" && recKind(c) === "registry") {
+          dup = c;
+          reason = `mismo ensayo clínico (${r.nct}) — registros de ensayo idénticos (fusionados)`;
+          unsure = null; ureason = null;
+          break;
+        }
+        if (kindBlock(r, c) === "registry") continue;
+        if (!unsure) {
+          unsure = c;
+          ureason = `mismo ensayo clínico (${r.nct}) — posible duplicado (comprobar cada uno en su fuente)`;
+        }
       }
     }
     // 7) título casi idéntico -> dudoso. Señal doble: Jaccard de palabras >=0,9 O Jaro-Winkler

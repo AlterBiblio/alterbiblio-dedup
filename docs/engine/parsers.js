@@ -18,7 +18,7 @@ function splitLines(s) {
 // mismas claves y mismos valores por defecto que el dict de Python.
 export function rec(source, { title = "", doi = "", year = "", authors = null,
   journal = "", volume = "", issue = "", spage = "", pmid = "",
-  abstract = "", extra = null, url = "", accession = "", eid = "", ptypes = null } = {}) {
+  abstract = "", extra = null, url = "", accession = "", eid = "", ptypes = null, keywords = "" } = {}) {
   return {
     source,
     // ptypes: tipología documental declarada por la base (PubMed PT / Embase M3),
@@ -42,7 +42,7 @@ export function rec(source, { title = "", doi = "", year = "", authors = null,
     // mdoi: DOI de emparejamiento (el CN de Cochrane cuenta como "sin DOI").
     mdoi: matchDoi(normDoi(doi)),
     // nct: nº de ensayo clínico reconciliado desde varios campos.
-    nct: extractNct(title, abstract, url, accession, doi, journal),
+    nct: extractNct(title, abstract, url, accession, doi, journal, keywords),
     // url/accession: enlace al registro en la base de origen (Embase UR/U2). Informativos.
     url: (url || "").trim(),
     accession: (accession || "").trim(),
@@ -117,6 +117,7 @@ export function parseRis(text, source) {
       journal: g("JO", "JF", "T2", "JA"),
       volume: g("VL"), issue: g("IS"), spage: g("SP"),
       pmid, abstract: g("AB", "N2"), url, accession, eid, ptypes,
+      keywords: (f.KW || []).join(" "),
     }));
   }
   return out;
