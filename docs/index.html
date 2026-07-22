@@ -10,7 +10,7 @@
 <style>
   :root{
     --off:#F7F7F7; --ink:#000; --white:#fff; --sec:#555; --line:#E7E7E7; --lima:#D6FF00;
-    --navy:#12314f; --blue:#1d6fb8;
+    --navy:#12314f; --blue:#1d6fb8; --magenta:#FF59BF;
     --serif:'Playfair Display',Georgia,serif;
     --sans:'Montserrat',system-ui,-apple-system,sans-serif;
     --emph:'DM Sans','Montserrat',sans-serif;
@@ -64,14 +64,26 @@
   .metric b{display:block;font-family:var(--serif);font-weight:500;font-size:2rem;line-height:1}
   .metric span{display:block;margin-top:6px;font-family:var(--emph);text-transform:uppercase;letter-spacing:.8px;font-size:.68rem;color:var(--sec)}
   /* dudosos */
-  .pair{border:1px solid var(--line);border-radius:5px;margin:10px 0}
-  .pair.undecided{border-color:var(--ink)}
+  .pair{border:1px solid var(--line);border-radius:5px;margin:10px 0;transition:opacity .15s ease,border-color .15s ease}
+  /* El pendiente resalta (borde negro grueso + franja magenta de atención); el resuelto se
+     atenúa y se aparta. Acento ÚNICO para "pendiente" (no un código pendiente/hecho de dos
+     colores). Vuelve a plena opacidad al pasar por encima o al desplegarlo para cambiarlo. */
+  .pair.undecided{border:1.5px solid var(--ink);border-left:5px solid var(--magenta)}
+  .pair.done{opacity:.5}
+  .pair.done:hover,.pair.done.open{opacity:1}
+  /* barra pegajosa: cuántos faltan + salto al siguiente sin decidir */
+  .pendbar{display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;background:var(--white);border:1.5px solid var(--ink);border-radius:5px;padding:9px 13px;margin:0 0 12px;position:sticky;top:8px;z-index:5}
+  .pendbar #pendtxt{font-family:var(--emph);font-weight:700;text-transform:uppercase;letter-spacing:.6px;font-size:.74rem}
+  .pendbar.alldone{border-color:var(--line)}
+  .pendbar.alldone #pendtxt{color:var(--sec)}
+  .pendbar #nextPend:disabled{opacity:.3;cursor:not-allowed}
   .psum{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;cursor:pointer}
   .psum .pn{font-family:var(--emph);font-weight:700;min-width:1.8em}
   .psum .pt{flex:1}
   .psum .pt .mo{color:var(--sec);font-size:.82rem}
   .psum .st{font-family:var(--emph);font-weight:700;text-transform:uppercase;font-size:.66rem;letter-spacing:.6px;padding:3px 7px;border-radius:100px;border:1px solid var(--line);color:var(--sec);white-space:nowrap;align-self:center}
-  .pair.done .st{border-color:var(--ink);color:var(--ink)}
+  .pair.undecided .st{background:var(--ink);color:var(--white);border-color:var(--ink)}
+  .pair.done .st{border-color:var(--line);color:var(--sec);background:transparent}
   .psum .bpos{font-family:var(--emph);font-weight:700;text-transform:uppercase;font-size:.6rem;letter-spacing:.5px;padding:2px 7px;border-radius:100px;background:var(--ink);color:var(--white);white-space:nowrap;align-self:center}
   .pairnote{color:var(--sec);font-size:.82rem;margin:2px 0 10px;border-left:3px solid var(--ink);padding-left:9px}
   .pbody{display:none;border-top:1px solid var(--line);padding:12px 13px}
@@ -87,6 +99,7 @@
   .choices{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
   .choices button{font-family:var(--emph);font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:.68rem;background:var(--white);border:1px solid var(--ink);border-radius:5px;padding:8px 11px;cursor:pointer;color:var(--ink)}
   .choices button.sel{background:var(--ink);color:var(--white)}
+  .choices button.sug{box-shadow:inset 0 0 0 2px var(--magenta);border-color:var(--ink)}
   /* prisma */
   .scroll{overflow-x:auto}
   .dl{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
@@ -146,7 +159,8 @@
   <section id="s3" class="locked">
     <div class="shead"><span class="num">03/</span><h2 data-i18n="s3">Dudosos · requieren verificación humana</h2><span class="chev">▸</span></div>
     <div class="sbody">
-      <p class="note" style="margin-top:0" data-i18n-html="s3note">La herramienta <b>no fusiona a ciegas</b>: decide para cada par si es la misma obra. <b>Despliega para ver las referencias completas</b> (incluido el resumen). Elige <b>Registro A</b>, <b>Registro B</b>, <b>Mantener ambos</b> (obras distintas) o <b>Decidir en la criba</b> (se quedan los dos, lo resuelves en Rayyan).</p>
+      <p class="note" style="margin-top:0" data-i18n-html="s3note">La herramienta <b>no fusiona a ciegas</b>: decide para cada par si es la misma obra. <b>Despliega para ver las referencias completas</b> (incluido el resumen). Elige <b>Registro A</b> o <b>Registro B</b> (es un duplicado, te quedas con esa versión), <b>Diferentes pero relacionados</b> (registros distintos emparentados —artículos hermanos, mismo ensayo—: se quedan los dos, enlazados), <b>Mantener ambos</b> (registros distintos sin relación) o <b>Decidir en la criba</b> (se quedan los dos, lo resuelves en Rayyan).</p>
+      <div id="pendbar" class="pendbar hidden"><span id="pendtxt"></span><button class="ghost" id="nextPend"></button></div>
       <div id="pairs"></div>
     </div>
   </section>
@@ -194,6 +208,7 @@
 
 <script type="module">
 import { deduplicar, escribirRis, filasDuplicados, filasRevisar, informe } from "./engine/index.js";
+import { isCnDoi } from "./engine/normalize.js";
 import { UI, reasonI18n, estadoLabel, HEADERS } from "./engine/i18n.js";
 import { excelMaestroFiles } from "./engine/xlsx.js";
 
@@ -230,7 +245,8 @@ $("#citecopy").onclick = () => {
     setTimeout(() => { b.textContent = UI[lang].citeCopy; }, 1800);
   }).catch(() => {});
 };
-const decisiones = new Map();      // n -> 'A'|'B'|'ambos'|'criba'
+const decisiones = new Map();      // n -> 'A'|'B'|'relacion'|'ambos'|'criba' (confirmada por la persona)
+const sugeridas = new Map();       // n -> sugerencia del motor; NO cuenta como decidida, el autor la valida
 let lastPrismaSvg = "";
 
 /* ---------- carga de ficheros ---------- */
@@ -297,10 +313,11 @@ runBtn.onclick=()=>{
   $("#error").classList.add("hidden");
   try{
     result=deduplicar([...state.values()]);
-    decisiones.clear();
-    // Los «posible duplicado» (2 identificadores distintos) se pre-marcan como «mantener
-    // ambos» —por diseño se conservan enteros—; el resto queda sin decidir para la persona.
-    for(const p of result.reviewFull) decisiones.set(p.n, esPosibleConservar(p.reason)?"ambos":null);
+    decisiones.clear(); sugeridas.clear();
+    // Los «posible duplicado» (2 identificadores distintos) NO se deciden solos: el autor los
+    // valida uno a uno. Se les SUGIERE «diferentes pero relacionadas» (botón resaltado), pero el
+    // par sigue contando como pendiente hasta que la persona confirma.
+    for(const p of result.reviewFull){const s=sugerenciaDe(p); if(s) sugeridas.set(p.n,s);}
     renderMetrics(); renderPairs();
     unlock("s2",true); unlock("s3",true); unlock("s4",true); unlock("s5",true); unlock("s6",false);
     refresh();
@@ -316,7 +333,8 @@ function computeFinal(){
     if(d==="A"){losers.add(p.b);extraRemoved.push({r:p.b,keptr:p.a,reason:"decisión humana: conservar A"});}
     else if(d==="B"){losers.add(p.a);extraRemoved.push({r:p.a,keptr:p.b,reason:"decisión humana: conservar B"});}
     else if(d==="criba"||d==null){pending.push({r:p.a,other:p.b,reason:p.reason});}
-    // 'ambos' -> resuelto, se quedan los dos, no pendiente
+    // 'relacion' y 'ambos' -> resuelto, se quedan los dos, no pendiente (la diferencia
+    // —enlazado vs no— se refleja sólo en la anotación de resultados_totales.csv)
   }
   const kept=result.kept.filter(r=>!losers.has(r));
   const removed=result.removed.concat(extraRemoved);
@@ -339,6 +357,14 @@ function refresh(){
   renderMetrics();
   const pend=result.reviewFull.length-decidedCount();
   $("#pend").textContent=pend;
+  // barra pegajosa: cuántos dudosos faltan por decidir + salto al siguiente
+  const pb=$("#pendbar"), total=result.reviewFull.length;
+  if(total){
+    pb.classList.remove("hidden");
+    pb.classList.toggle("alldone",pend===0);
+    $("#pendtxt").textContent=pend>0?T().pendLeft(pend):T().allDoneMsg;
+    const np=$("#nextPend"); np.textContent=T().nextPending; np.disabled=pend===0;
+  } else pb.classList.add("hidden");
   if(allDecided()){ $("#prismaGate").classList.add("hidden"); $("#prismaArea").classList.remove("hidden"); renderPrisma(); }
   else{ $("#prismaGate").classList.remove("hidden"); $("#prismaArea").classList.add("hidden"); }
   renderDownloads();
@@ -349,9 +375,28 @@ function refresh(){
 function refField(r){return {t:r.title,au:(r.authors||[]).join(", "),jo:r.journal,yr:r.year,doi:r.doi,ab:r.abstract,src:r.source,pmid:r.pmid,pt:(r.ptypes||[]).join(", ")};}
 // Regla de oro (María): dos identificadores distintos (DOIs, ensayo, accesión) ⇒ el par es
 // un «posible duplicado» que por diseño se conserva ENTERO. Estos no exigen decisión: se
-// pre-marcan como «mantener ambos». La revisión interactiva queda solo para la ambigüedad
+// pre-marcan como «diferentes pero relacionadas». La revisión interactiva queda solo para la ambigüedad
 // genuina (vol+pág discrepantes, sin identificador común, ¿respuesta/comentario?).
 function esPosibleConservar(reason){return /conservar ambos|mismo ensayo/i.test(reason||"");}
+// Ficha de registro de ensayo «pura»: no es un artículo publicado (sin PMID y sin DOI de revista;
+// un DOI Cochrane cn-… es registro, no revista). Distingue las fichas de registro de las
+// publicaciones del ensayo (protocolo/resultados), que sí traen PMID o DOI de revista.
+function esRegistroPuro(r){ return !r.pmid && (!r.doi || isCnDoi(r.doi)); }
+// Sugerencia por defecto para un par dudoso (el autor la valida; nunca decide sola).
+function sugerenciaDe(p){
+  if(/mismo ensayo/i.test(p.reason)){
+    // ¿la MISMA ficha de registro duplicada entre bases o dos publicaciones distintas del ensayo?
+    // Si NINGUNO es artículo publicado → misma ficha → quedarse con el MÁS COMPLETO; si alguno es
+    // artículo → publicaciones distintas → conservar los dos (relacionadas), como antes.
+    const a=p.a, b=p.b;
+    if(esRegistroPuro(a) && esRegistroPuro(b)){
+      const compl=r=>(r.doi?1:0)+(r.pmid?1:0)+(r.volume?1:0)+(r.start_page?1:0)+(r.nabs.length>=150?1:0);
+      return compl(b)>compl(a) ? "B" : "A";   // empate → A (estable)
+    }
+    return "relacion";
+  }
+  return esPosibleConservar(p.reason) ? "relacion" : null;
+}
 function renderPairs(){
   const box=$("#pairs");box.innerHTML="";
   if(!result.reviewFull.length){box.innerHTML=`<p class="note">${T().noPairs}</p>`;return;}
@@ -362,13 +407,14 @@ function renderPairs(){
     const A=refField(p.a),B=refField(p.b);
     const pos=esPosibleConservar(p.reason);
     const d=decisiones.get(p.n);
+    const sug=sugeridas.get(p.n);
     const el=document.createElement("div");el.className="pair"+(d?" done":" undecided");el.dataset.n=p.n;
     el.innerHTML=`
       <div class="psum">
         <span class="pn">${p.n}</span>
         <div class="pt"><div>${esc(A.t)}</div><div class="mo">${esc(reasonI18n(p.reason,lang))}</div></div>
         ${pos?`<span class="bpos">${T().badgePosible}</span>`:""}
-        <span class="st">${d?labelOf(d):T().undecided}</span>
+        <span class="st">${pillText(d,sug)}</span>
       </div>
       <div class="pbody">
         <div class="refs">
@@ -378,24 +424,31 @@ function renderPairs(){
         <div class="choices">
           <button data-d="A">${T().recA}</button>
           <button data-d="B">${T().recB}</button>
+          <button data-d="relacion">${T().related}</button>
           <button data-d="ambos">${T().keepBoth}</button>
           <button data-d="criba">${T().inScreen}</button>
         </div>
       </div>`;
-    el.querySelectorAll(".choices button").forEach(b=>{if(b.dataset.d===d)b.classList.add("sel");});
+    el.querySelectorAll(".choices button").forEach(b=>{
+      if(b.dataset.d===d)b.classList.add("sel");
+      else if(!d&&b.dataset.d===sug)b.classList.add("sug");   // sugerencia resaltada, aún sin confirmar
+    });
     el.querySelector(".psum").onclick=()=>el.classList.toggle("open");
     el.querySelectorAll(".choices button").forEach(b=>b.onclick=(ev)=>{
       ev.stopPropagation();
       decisiones.set(p.n,b.dataset.d);
-      el.querySelectorAll(".choices button").forEach(x=>x.classList.toggle("sel",x===b));
+      el.querySelectorAll(".choices button").forEach(x=>{x.classList.toggle("sel",x===b);x.classList.remove("sug");});
       el.classList.remove("undecided");el.classList.add("done");
-      el.querySelector(".st").textContent=labelOf(b.dataset.d);
+      el.querySelector(".st").textContent=stText(b.dataset.d);
       refresh();
     });
     box.appendChild(el);
   }
 }
-function labelOf(d){return {A:T().lblA,B:T().lblB,ambos:T().lblBoth,criba:T().lblScreen}[d]||T().undecided;}
+function labelOf(d){return {A:T().lblA,B:T().lblB,relacion:T().lblRelated,ambos:T().lblBoth,criba:T().lblScreen}[d]||T().undecided;}
+function stText(d){return d?"✓ "+labelOf(d):T().undecided;}
+// Pill de la fila resumen: confirmada (✓) · sugerida sin confirmar (sugerido: …) · sin nada (sin decidir)
+function pillText(d,sug){return d?"✓ "+labelOf(d):(sug?T().suggested+" "+labelOf(sug):T().undecided);}
 function idLinks(r){
   const doi=r.doi?`<a href="https://doi.org/${esc(r.doi)}" target="_blank" rel="noopener">${esc(r.doi)}</a>`:`<span class="mo">—</span>`;
   const pmid=r.pmid?`<a href="https://pubmed.ncbi.nlm.nih.gov/${esc(r.pmid)}/" target="_blank" rel="noopener">${esc(r.pmid)}</a>`:`<span class="mo">—</span>`;
@@ -424,7 +477,9 @@ function masterRows(){
   const linkOf=new Map(), pendOf=new Map();
   for(const p of result.reviewFull){
     const d=decisiones.get(p.n);
-    if(d==="ambos"){linkOf.set(p.a,{o:p.b,reason:p.reason});linkOf.set(p.b,{o:p.a,reason:p.reason});}
+    // 'relacion' (enlazar) -> vinculado, con anotación de a qué se parece; 'ambos' -> mantenido
+    // (distinto y sin relación, no entra en linkOf ni pendOf); 'criba'/sin decidir -> pendiente.
+    if(d==="relacion"){linkOf.set(p.a,{o:p.b,reason:p.reason});linkOf.set(p.b,{o:p.a,reason:p.reason});}
     else if(d==="criba"||d==null){pendOf.set(p.a,{o:p.b,reason:p.reason});pendOf.set(p.b,{o:p.a,reason:p.reason});}
   }
   const rows=[];
@@ -456,13 +511,13 @@ function renderDownloads(){
   mk(T().dlExcel,dlExcelMaestro);
 }
 // Excel maestro (3 hojas, espejo del CLI): refleja tus decisiones — los pares
-// conservados (ambos / sin resolver) van anotados como «posible duplicado».
+// conservados (relacionadas / sin resolver) van anotados como «posible duplicado».
 function dlExcelMaestro(){
   const f=computeFinal();
   const rev=[];
   for(const p of result.reviewFull){
     const d=decisiones.get(p.n);
-    if(d==="ambos"||d==="criba"||d==null) rev.push({r:p.a,other:p.b,reason:p.reason});
+    if(d==="relacion"||d==="criba"||d==null) rev.push({r:p.a,other:p.b,reason:p.reason});
   }
   const xml=excelMaestroFiles(f.kept,f.removed,rev,result.counts.porFuente,lang);
   const enc=new TextEncoder(), files=new Map();
@@ -586,6 +641,14 @@ function writeStoredZip(files){
   const out=new Uint8Array(total);let o=0;for(const p of parts){out.set(p,o);o+=p.length;}
   return new Blob([out],{type:"application/vnd.openxmlformats-officedocument.presentationml.presentation"});
 }
+
+/* ---------- salto al siguiente dudoso sin decidir ---------- */
+$("#nextPend").onclick=()=>{
+  const el=document.querySelector("#pairs .pair.undecided");
+  if(!el)return;
+  el.classList.add("open");                     // lo despliega para decidirlo
+  el.scrollIntoView({behavior:"smooth",block:"center"});
+};
 
 /* ---------- init: aplica el idioma detectado (o guardado) al cargar ---------- */
 applyLang();
