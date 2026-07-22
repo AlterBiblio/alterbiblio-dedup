@@ -163,6 +163,22 @@ export function dedup(records, { mergeThr = 0.5, reviewThr = 0.3, prio = {} } = 
     return uniq;
   };
 
+  const normJournal = (x) => (x.journal || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const copubReason = (a, b) => {
+    // Ver dedup.py: misma obra co-publicada en dos revistas (publicación conjunta o doble
+    // publicación CME) — refina el motivo genérico "posible duplicado" recomendando conservar uno solo.
+    if (!(a.ntitle && a.ntitle === b.ntitle)) return null;
+    if (!(a.fauthor && a.fauthor === b.fauthor)) return null;
+    if (!(a.year && a.year === b.year)) return null;
+    const ja = normJournal(a), jb = normJournal(b);
+    if (!(ja && jb && ja !== jb)) return null;
+    let cual;
+    if (a.pmid && !b.pmid) cual = `el de PMID ${a.pmid}`;
+    else if (b.pmid && !a.pmid) cual = `el de PMID ${b.pmid}`;
+    else cual = "cualquiera (mismo contenido)";
+    return `misma obra co-publicada en dos revistas (publicación conjunta o doble publicación CME) — mantener solo uno: ${cual}`;
+  };
+
   for (const r of records) {
     let dup = null, reason = null, unsure = null, ureason = null;
     const cands = candidates(r);
@@ -183,7 +199,7 @@ export function dedup(records, { mergeThr = 0.5, reviewThr = 0.3, prio = {} } = 
           if (doiConflict(r, c)) {   // regla de oro: DOIs distintos => conservar ambos, pero ANOTAR
             if (abBorder === null) {
               abBorder = c;
-              abReason = "abstract casi idéntico pero DOIs distintos — posible duplicado (conservar ambos)";
+              abReason = "abstract casi idéntico pero DOIs distintos — posible duplicado (comprobar cada uno en su fuente, p. ej. por su DOI)";
             }
             continue;
           }
@@ -220,7 +236,7 @@ export function dedup(records, { mergeThr = 0.5, reviewThr = 0.3, prio = {} } = 
         // en dos venues...) -> se conserva y se ANOTA (no se descarta en silencio).
         if (unsure === null) {
           unsure = c;
-          ureason = "título+año idénticos pero DOIs distintos — posible duplicado (conservar ambos)";
+          ureason = "título+año idénticos pero DOIs distintos — posible duplicado (comprobar cada uno en su fuente, p. ej. por su DOI)";
         }
       } else if (hardConflict(r, c)) {
         if (unsure === null) {
@@ -254,7 +270,7 @@ export function dedup(records, { mergeThr = 0.5, reviewThr = 0.3, prio = {} } = 
         if (doiConflict(r, c)) {   // regla de oro: DOIs distintos => conservar ambos, pero ANOTAR si son afines
           if (s >= 0.70 && !unsure) {
             unsure = c;
-            ureason = `título ${fmt2(s)}+mismo autor pero DOIs distintos — posible duplicado (conservar ambos)`;
+            ureason = `título ${fmt2(s)}+mismo autor pero DOIs distintos — posible duplicado (comprobar cada uno en su fuente, p. ej. por su DOI)`;
           }
           continue;
         }
@@ -315,7 +331,7 @@ export function dedup(records, { mergeThr = 0.5, reviewThr = 0.3, prio = {} } = 
       for (const c of byNct.get(r.nct) ?? []) {
         if (c === r || kindBlock(r, c) === "registry") continue;
         unsure = c;
-        ureason = `mismo ensayo clínico (${r.nct}) — posible duplicado (conservar ambos)`;
+        ureason = `mismo ensayo clínico (${r.nct}) — posible duplicado (comprobar cada uno en su fuente)`;
         break;
       }
     }
@@ -334,8 +350,8 @@ export function dedup(records, { mergeThr = 0.5, reviewThr = 0.3, prio = {} } = 
           } else if (doiConflict(r, c)) {
             unsure = c;
             ureason = jwok
-              ? "títulos casi idénticos (variación de escritura) pero DOIs distintos — posible duplicado (conservar ambos)"
-              : `mismo título ${fmt2(s)} pero DOIs distintos — posible duplicado (conservar ambos)`;
+              ? "títulos casi idénticos (variación de escritura) pero DOIs distintos — posible duplicado (comprobar cada uno en su fuente, p. ej. por su DOI)"
+              : `mismo título ${fmt2(s)} pero DOIs distintos — posible duplicado (comprobar cada uno en su fuente, p. ej. por su DOI)`;
           } else if (jwok) {
             unsure = c;
             ureason = "títulos casi idénticos (variación de escritura, Jaro-Winkler) — posible duplicado (sin DOI/PMID/autor común)";
@@ -345,6 +361,12 @@ export function dedup(records, { mergeThr = 0.5, reviewThr = 0.3, prio = {} } = 
           break;
         }
       }
+    }
+
+    // Refina el motivo (misma obra co-publicada, publicación conjunta o doble publicación CME): ver dedup.py.
+    if (unsure !== null && ureason && ureason.includes("posible duplicado (")) {
+      const cp = copubReason(r, unsure);
+      if (cp) ureason = cp;
     }
 
     // Registro de ensayo (clinicaltrials.gov, NCT…) SIEMPRE aparte (brazo PRISMA propio):

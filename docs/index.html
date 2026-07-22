@@ -452,7 +452,7 @@ function pillText(d,sug){return d?"✓ "+labelOf(d):(sug?T().suggested+" "+label
 function idLinks(r){
   const doi=r.doi?`<a href="https://doi.org/${esc(r.doi)}" target="_blank" rel="noopener">${esc(r.doi)}</a>`:`<span class="mo">—</span>`;
   const pmid=r.pmid?`<a href="https://pubmed.ncbi.nlm.nih.gov/${esc(r.pmid)}/" target="_blank" rel="noopener">${esc(r.pmid)}</a>`:`<span class="mo">—</span>`;
-  return `DOI: ${doi}&nbsp;·&nbsp;PMID: ${pmid}`;
+  return `<b>DOI:</b> ${doi}&nbsp;·&nbsp;<b>PMID:</b> ${pmid}`;
 }
 function refCard(title,r){
   return `<div class="ref"><h4>${title}</h4>

@@ -518,6 +518,30 @@ def dedup(records, merge_thr=0.5, review_thr=0.3, prio=None):
             if id(x) not in seen: seen.add(id(x)); uniq.append(x)
         return uniq
 
+    def _norm_journal(x):
+        return re.sub(r"[^a-z0-9]", "", (x["journal"] or "").lower())
+    def copub_reason(a, b):
+        # Misma obra co-publicada en dos revistas: mismo título normalizado, mismo primer autor,
+        # mismo año, revista distinta y DOI distinto. Dos mecanismos frecuentes: material de
+        # formación (CME) republicado entre revistas hermanas (p. ej. Springer: Die Anaesthesiologie
+        # ↔ Notfall + Rettungsmedizin), o publicación conjunta por acuerdo entre revistas ("jointly
+        # published", p. ej. Clinical Otolaryngology ↔ British Journal of Anaesthesia). Se recomienda
+        # conservar UN solo registro (el indexado en MEDLINE si solo uno tiene PMID). No fusiona: solo
+        # afina el motivo del par que ya va a revisión, sin mover ninguna cifra.
+        if not (a["ntitle"] and a["ntitle"] == b["ntitle"]): return None
+        if not (a["fauthor"] and a["fauthor"] == b["fauthor"]): return None
+        if not (a["year"] and a["year"] == b["year"]): return None
+        ja, jb = _norm_journal(a), _norm_journal(b)
+        if not (ja and jb and ja != jb): return None
+        if a["pmid"] and not b["pmid"]:
+            cual = "el de PMID %s" % a["pmid"]
+        elif b["pmid"] and not a["pmid"]:
+            cual = "el de PMID %s" % b["pmid"]
+        else:
+            cual = "cualquiera (mismo contenido)"
+        return ("misma obra co-publicada en dos revistas (publicación conjunta o doble publicación "
+                "CME) — mantener solo uno: %s" % cual)
+
     for r in records:
         dup = reason = unsure = ureason = None
         cands = candidates(r)
@@ -537,7 +561,7 @@ def dedup(records, merge_thr=0.5, review_thr=0.3, prio=None):
                     if kb == "registry": continue            # registro de ensayo: aparte, ni fusiona ni revisa
                     if doi_conflict(r, c):   # regla de oro: DOIs distintos => conservar ambos, pero ANOTAR
                         if ab_border is None:
-                            ab_border, ab_reason = c, "abstract casi idéntico pero DOIs distintos — posible duplicado (conservar ambos)"
+                            ab_border, ab_reason = c, "abstract casi idéntico pero DOIs distintos — posible duplicado (comprobar cada uno en su fuente, p. ej. por su DOI)"
                         continue
                     cmix = bool(comment_kind(r["title"])) != bool(comment_kind(c["title"]))
                     if not cmix and kb is None and (title_sim(r["ntitle"], c["ntitle"]) >= 0.5 or (r["fauthor"] and r["fauthor"] == c["fauthor"])):
@@ -565,7 +589,7 @@ def dedup(records, merge_thr=0.5, review_thr=0.3, prio=None):
                 # idénticos con DOIs distintos es un posible duplicado (revista que cambia de prefijo
                 # DOI, misma obra en dos venues...) -> se conserva y se ANOTA (no se descarta en silencio).
                 if unsure is None:
-                    unsure, ureason = c, "título+año idénticos pero DOIs distintos — posible duplicado (conservar ambos)"
+                    unsure, ureason = c, "título+año idénticos pero DOIs distintos — posible duplicado (comprobar cada uno en su fuente, p. ej. por su DOI)"
             elif hard_conflict(r, c):
                 if unsure is None:
                     unsure, ureason = c, ("título+año idénticos pero ≥2 identificadores (%s) discrepantes (revisar)"
@@ -591,7 +615,7 @@ def dedup(records, merge_thr=0.5, review_thr=0.3, prio=None):
                 s = title_sim(r["ntitle"], c["ntitle"])
                 if doi_conflict(r, c):   # regla de oro: DOIs distintos => conservar ambos, pero ANOTAR si son afines
                     if s >= 0.70 and not unsure:
-                        unsure, ureason = c, f"título {s:.2f}+mismo autor pero DOIs distintos — posible duplicado (conservar ambos)"
+                        unsure, ureason = c, f"título {s:.2f}+mismo autor pero DOIs distintos — posible duplicado (comprobar cada uno en su fuente, p. ej. por su DOI)"
                     continue
                 if year_ok(r, c):
                     if s >= 0.85:
@@ -643,7 +667,7 @@ def dedup(records, merge_thr=0.5, review_thr=0.3, prio=None):
         if not dup and not unsure and r["nct"]:
             for c in by_nct.get(r["nct"], []):
                 if c is r or kind_block(r, c) == "registry": continue
-                unsure, ureason = c, f"mismo ensayo clínico ({r['nct']}) — posible duplicado (conservar ambos)"; break
+                unsure, ureason = c, f"mismo ensayo clínico ({r['nct']}) — posible duplicado (comprobar cada uno en su fuente)"; break
         # 7) título casi idéntico -> dudoso. Señal doble: Jaccard de palabras >=0,9 O Jaro-Winkler
         #    >=0,95 (este último pilla variaciones de escritura: guiones, erratas, una palabra). Si
         #    los DOIs reales difieren, es la regla de oro: posible duplicado que se conserva.
@@ -657,13 +681,21 @@ def dedup(records, merge_thr=0.5, review_thr=0.3, prio=None):
                     if kind:
                         unsure, ureason = c, f"{kind} (mantener ambos)"
                     elif doi_conflict(r, c):
-                        unsure, ureason = c, ("títulos casi idénticos (variación de escritura) pero DOIs distintos — posible duplicado (conservar ambos)"
-                                              if jwok else f"mismo título {s:.2f} pero DOIs distintos — posible duplicado (conservar ambos)")
+                        unsure, ureason = c, ("títulos casi idénticos (variación de escritura) pero DOIs distintos — posible duplicado (comprobar cada uno en su fuente, p. ej. por su DOI)"
+                                              if jwok else f"mismo título {s:.2f} pero DOIs distintos — posible duplicado (comprobar cada uno en su fuente, p. ej. por su DOI)")
                     elif jwok:
                         unsure, ureason = c, "títulos casi idénticos (variación de escritura, Jaro-Winkler) — posible duplicado (sin DOI/PMID/autor común)"
                     else:
                         unsure, ureason = c, f"título casi idéntico {s:.2f} (sin DOI/PMID/autor común)"
                     break
+
+        # Refina el motivo: si el par dudoso ("posible duplicado …") es en realidad la MISMA obra
+        # co-publicada en dos revistas (publicación conjunta o doble publicación CME), sustituye el
+        # motivo genérico por uno específico que recomienda conservar un solo registro. No cambia
+        # qué pares van a revisión ni ninguna fusión (cifras PRISMA/benchmark intactas).
+        if unsure is not None and ureason and "posible duplicado (" in ureason:
+            _cp = copub_reason(r, unsure)
+            if _cp: ureason = _cp
 
         # Registro de ensayo (clinicaltrials.gov, NCT…) SIEMPRE aparte (brazo PRISMA propio):
         # anula cualquier fusión con un artículo/abstract, gane la regla que gane.

@@ -5,7 +5,7 @@ El MOTOR (dedup.py/dedup.js) NO se toca: sigue emitiendo los motivos en español
 (canónicos) y la paridad byte a byte se mantiene. Para inglés, la capa de salida
 traduce la etiqueta con reason_to_en() y usa cabeceras/informe EN.
 
-Las 24 plantillas de reason_to_en coinciden EXACTAMENTE con las de i18n.js
+Las 26 plantillas de reason_to_en coinciden EXACTAMENTE con las de i18n.js
 (mismo español de entrada, mismo inglés de salida): esto garantiza que la salida
 EN de ambos motores sea idéntica, igual que ya lo es la ES.
 """
@@ -25,18 +25,18 @@ _REASON_EN = [
     (re.compile(r"^DOI\+título$"), lambda m: "DOI+title"),
     (re.compile(r"^título\+autor\+año~$"), lambda m: "title+author+year~"),
     (re.compile(r"^vol\+pág\+autor\+año$"), lambda m: "vol+page+author+year"),
-    (re.compile(r"^abstract casi idéntico pero DOIs distintos — posible duplicado \(conservar ambos\)$"),
-     lambda m: "near-identical abstract but different DOIs — possible duplicate (keep both)"),
+    (re.compile(r"^abstract casi idéntico pero DOIs distintos — posible duplicado \(comprobar cada uno en su fuente, p. ej. por su DOI\)$"),
+     lambda m: "near-identical abstract but different DOIs — possible duplicate (check each in its source, e.g. by its DOI)"),
     (re.compile(r"^abstract casi idéntico pero ≥2 identificadores \((.+?)\) discrepantes \(revisar\)$"),
      lambda m: f"near-identical abstract but ≥2 identifiers ({_fields_en(m.group(1))}) in conflict (review)"),
-    (re.compile(r"^título\+año idénticos pero DOIs distintos — posible duplicado \(conservar ambos\)$"),
-     lambda m: "identical title+year but different DOIs — possible duplicate (keep both)"),
+    (re.compile(r"^título\+año idénticos pero DOIs distintos — posible duplicado \(comprobar cada uno en su fuente, p. ej. por su DOI\)$"),
+     lambda m: "identical title+year but different DOIs — possible duplicate (check each in its source, e.g. by its DOI)"),
     (re.compile(r"^título\+año idénticos pero ≥2 identificadores \((.+?)\) discrepantes \(revisar\)$"),
      lambda m: f"identical title+year but ≥2 identifiers ({_fields_en(m.group(1))}) in conflict (review)"),
     (re.compile(r"^DOI igual, título similar ([\d.]+)$"),
      lambda m: f"same DOI, similar title {m.group(1)}"),
-    (re.compile(r"^título ([\d.]+)\+mismo autor pero DOIs distintos — posible duplicado \(conservar ambos\)$"),
-     lambda m: f"title {m.group(1)}+same author but different DOIs — possible duplicate (keep both)"),
+    (re.compile(r"^título ([\d.]+)\+mismo autor pero DOIs distintos — posible duplicado \(comprobar cada uno en su fuente, p. ej. por su DOI\)$"),
+     lambda m: f"title {m.group(1)}+same author but different DOIs — possible duplicate (check each in its source, e.g. by its DOI)"),
     (re.compile(r"^título ([\d.]+)\+mismo autor, abstract de congreso vs artículo \(¿misma obra\? mantener/enlazar\)$"),
      lambda m: f"title {m.group(1)}+same author, conference abstract vs article (same work? keep/link)"),
     (re.compile(r"^título ([\d.]+)\+autor\+año~ pero ≥2 identificadores \((.+?)\) discrepantes \(revisar\)$"),
@@ -47,10 +47,10 @@ _REASON_EN = [
      lambda m: f"near-identical title {m.group(1)}+same author, different years (conference abstract vs article?)"),
     (re.compile(r"^mismo vol\+pág\+autor\+año pero títulos distintos ([\d.]+) \(revisar\)$"),
      lambda m: f"same vol+page+author+year but different titles {m.group(1)} (review)"),
-    (re.compile(r"^mismo ensayo clínico \((.+?)\) — posible duplicado \(conservar ambos\)$"),
-     lambda m: f"same clinical trial ({m.group(1)}) — possible duplicate (keep both)"),
-    (re.compile(r"^títulos casi idénticos \(variación de escritura\) pero DOIs distintos — posible duplicado \(conservar ambos\)$"),
-     lambda m: "near-identical titles (spelling variant) but different DOIs — possible duplicate (keep both)"),
+    (re.compile(r"^mismo ensayo clínico \((.+?)\) — posible duplicado \(comprobar cada uno en su fuente\)$"),
+     lambda m: f"same clinical trial ({m.group(1)}) — possible duplicate (check each in its source)"),
+    (re.compile(r"^títulos casi idénticos \(variación de escritura\) pero DOIs distintos — posible duplicado \(comprobar cada uno en su fuente, p. ej. por su DOI\)$"),
+     lambda m: "near-identical titles (spelling variant) but different DOIs — possible duplicate (check each in its source, e.g. by its DOI)"),
     (re.compile(r"^títulos casi idénticos \(variación de escritura, Jaro-Winkler\) — posible duplicado \(sin DOI/PMID/autor común\)$"),
      lambda m: "near-identical titles (spelling variant, Jaro-Winkler) — possible duplicate (no shared DOI/PMID/author)"),
     (re.compile(r"^título casi idéntico ([\d.]+) \(sin DOI/PMID/autor común\)$"),
@@ -59,6 +59,10 @@ _REASON_EN = [
      lambda m: "article + erratum/correction (keep both)"),
     (re.compile(r"^artículo \+ respuesta/comentario \(mantener ambos\)$"),
      lambda m: "article + reply/comment (keep both)"),
+    (re.compile(r"^misma obra co-publicada en dos revistas \(publicación conjunta o doble publicación CME\) — mantener solo uno: el de PMID (\d+)$"),
+     lambda m: f"same work co-published in two journals (joint or CME dual publication) — keep only one: the one with PMID {m.group(1)}"),
+    (re.compile(r"^misma obra co-publicada en dos revistas \(publicación conjunta o doble publicación CME\) — mantener solo uno: cualquiera \(mismo contenido\)$"),
+     lambda m: "same work co-published in two journals (joint or CME dual publication) — keep only one: either (same content)"),
 ]
 
 
