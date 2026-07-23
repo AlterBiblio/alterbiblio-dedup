@@ -13,6 +13,7 @@ Decisiones válidas: conservar_A · conservar_B · mantener_ambos · enlazar.
 import csv
 
 from dedup import merge_record
+from safe_output import csv_safe
 
 DECISIONES_VALIDAS = ("conservar_A", "conservar_B", "mantener_ambos", "enlazar")
 
@@ -82,9 +83,10 @@ def write_decisiones_csv(review_original, decisiones, enlaces, path, lang="es"):
             if dec == "enlazar":
                 a, _b = next(it)
                 nota = a["extra"]["nota"]
-            w.writerow([n, reason_i18n(reason, lang), r["source"], r["title"], r["doi"], r["year"],
-                        other["source"], other["title"], other["doi"], other["year"],
-                        dec or pend, nota])
+            w.writerow([csv_safe(v) for v in
+                        [n, reason_i18n(reason, lang), r["source"], r["title"], r["doi"], r["year"],
+                         other["source"], other["title"], other["doi"], other["year"],
+                         dec or pend, nota]])
 
 
 def _nota_relacionado(other):

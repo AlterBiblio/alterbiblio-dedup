@@ -24,7 +24,10 @@ function nombreBase(name) {
 }
 
 export function deduplicar(entradas, opts = {}) {
-  const { mergeThr = 0.5, reviewThr = 0.3, format = null, lang = "es" } = opts;
+  const {
+    mergeThr = 0.5, reviewThr = 0.3, format = null, lang = "es",
+    maxRecords = Number.POSITIVE_INFINITY,
+  } = opts;
   const allrecs = [];
   const counts = new Map();
   for (const { name, text: textoCrudo, source } of entradas) {
@@ -45,6 +48,9 @@ export function deduplicar(entradas, opts = {}) {
     }
     counts.set(src, (counts.get(src) ?? 0) + recs.length);
     allrecs.push(...recs);
+    if (allrecs.length > maxRecords) {
+      throw new Error(`ERROR: el lote supera el límite de ${maxRecords} registros.`);
+    }
   }
   if (!allrecs.length) throw new Error("ERROR: 0 registros en total; nada que deduplicar.");
   // Orden canónico independiente del orden de los ficheros de entrada (equivalente a

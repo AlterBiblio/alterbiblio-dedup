@@ -1,6 +1,6 @@
 {
   "name": "alterbiblio-dedup",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "private": true,
   "license": "CC-BY-NC-SA-4.0",
   "type": "module",

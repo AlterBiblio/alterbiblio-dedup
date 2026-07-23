@@ -20,6 +20,45 @@ export function fmt2(x) {
 //   NUL no aparece en los campos, así la concatenación es inyectiva.
 const SEP = "\u0000";
 
+// Fusión de metadatos compartida por la cascada y por las decisiones humanas.
+// Mantiene paridad con scripts/dedup.py:merge_record.
+function isAbstractPage(x) {
+  return /^[A-Za-z]\d/.test(x.spage || "");
+}
+
+function pubRank(x) {
+  let r = 0.0;
+  if (x.volume) r += 1;
+  if (x.spage) {
+    r += 1;
+    if (isAbstractPage(x)) r -= 1.5;
+  }
+  if (x.pmid) r += 1;
+  if (x.doi) r += 0.5;
+  if ((x.nabs || "").length >= 150) r += 0.5;
+  return r;
+}
+
+export function mergeRecord(keeper, other) {
+  const adopt = pubRank(other) > pubRank(keeper);
+  const fields = ["title", "ntitle", "year", "doi", "volume", "issue", "spage",
+    "journal", "pmid", "eid", "abstract", "nabs", "fauthor", "authors"];
+  for (const f of fields) {
+    const val = other[f];
+    const truthy = Array.isArray(val) ? val.length > 0 : Boolean(val);
+    const keeperEmpty = Array.isArray(keeper[f]) ? keeper[f].length === 0 : !keeper[f];
+    if (truthy && (adopt || keeperEmpty)) keeper[f] = Array.isArray(val) ? [...val] : val;
+  }
+  const seen = new Set(keeper.ptypes || []);
+  for (const p of other.ptypes || []) {
+    if (!seen.has(p)) {
+      seen.add(p);
+      (keeper.ptypes ??= []).push(p);
+    }
+  }
+  return keeper;
+}
+
 // Guardarraíl "≥2 identificadores en conflicto" (dedup.py hard_conflict): las reglas de
 // señal blanda (abstract, título+año, título+autor+año~) pueden emparejar dos obras
 // DISTINTAS con metadatos casi iguales. Un campo duro (DOI normalizado, volumen, página
@@ -85,8 +124,6 @@ export function dedup(records, { mergeThr = 0.5, reviewThr = 0.3, prio = {} } = 
     if (Number.isNaN(ai) || Number.isNaN(bi)) return false; // int() lanzaría ValueError
     return Math.abs(ai - bi) <= tol;
   };
-  // página tipo e824 / S76 / A12 -> abstract de reunión o suplemento
-  const isAbstractPage = (x) => /^[A-Za-z]\d/.test(x.spage || "");
   const isRegistry = (x) => {   // registro de ensayo (brazo aparte en PRISMA)
     if (REGISTRY_RE.test(x.journal || "")) return true;
     return /\b(NCT\d{6,}|ISRCTN\d{6,}|EudraCT)\b/.test(x.title || "");
@@ -109,35 +146,8 @@ export function dedup(records, { mergeThr = 0.5, reviewThr = 0.3, prio = {} } = 
     if (kr === "registry" || kc === "registry") return "registry";
     return "abs_vs_art";
   };
-  const pubRank = (x) => {  // cuánto de "versión de número publicada" es (vs online-first / abstract de reunión)
-    let r = 0.0;
-    if (x.volume) r += 1;
-    if (x.spage) {
-      r += 1;
-      if (isAbstractPage(x)) r -= 1.5;  // página de suplemento/reunión (S76, e824) = abstract, pesa menos
-    }
-    if (x.pmid) r += 1;
-    if (x.doi) r += 0.5;
-    if (x.nabs.length >= 150) r += 0.5;
-    return r;
-  };
   const mergeInto = (keeper, other) => {
-    // Preferir la versión de número PUBLICADA (no online-first ni abstract de suplemento).
-    // Si 'other' es más "publicada" que 'keeper', el superviviente adopta su identidad;
-    // si no, solo se rellenan huecos.
-    const adopt = pubRank(other) > pubRank(keeper);
-    const fields = ["title", "ntitle", "year", "doi", "volume", "issue", "spage",
-      "journal", "pmid", "eid", "abstract", "nabs", "fauthor", "authors"];
-    for (const f of fields) {
-      // "truthy" de Python: la lista vacía de authors también cuenta como vacío
-      const val = other[f];
-      const truthy = Array.isArray(val) ? val.length > 0 : Boolean(val);
-      const keeperEmpty = Array.isArray(keeper[f]) ? keeper[f].length === 0 : !keeper[f];
-      if (truthy && (adopt || keeperEmpty)) keeper[f] = val;
-    }
-    // ptypes: unión (el superviviente acumula la tipología de ambos), como dedup.py
-    const seen = new Set(keeper.ptypes);
-    for (const p of other.ptypes || []) if (!seen.has(p)) { seen.add(p); keeper.ptypes.push(p); }
+    mergeRecord(keeper, other);
     register(keeper);  // reindexar por si cambió doi/título/año
   };
   const candidates = (r) => {

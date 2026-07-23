@@ -10,8 +10,8 @@ authors:
     orcid: 'https://orcid.org/0000-0002-6521-665X'
     affiliation: Alter Biblio SL, Madrid, Spain
 doi: 10.5281/zenodo.21469292
-version: 1.2.2
-date-released: '2026-07-22'
+version: 1.2.3
+date-released: '2026-07-23'
 repository-code: 'https://github.com/AlterBiblio/alterbiblio-dedup'
 url: 'https://alterbiblio.github.io/alterbiblio-dedup/'
 abstract: >-
