@@ -2,6 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-hqO8JL7/4n7IWlZ5cf/swu8SaTEGCAQfup1aqdpBNMw='; worker-src 'self'; connect-src 'self'; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>alterbiblio-dedup · deduplicación conservadora de referencias</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -214,10 +216,20 @@ import { deduplicar, escribirRis, filasDuplicados, filasRevisar, informe } from 
 import { isCnDoi } from "./engine/normalize.js";
 import { UI, reasonI18n, estadoLabel, HEADERS } from "./engine/i18n.js";
 import { excelMaestroFiles } from "./engine/xlsx.js";
+import { applyWebDecisions } from "./engine/decisiones.js";
+import { toCsv } from "./engine/csv.js";
+import { esc, identifierLinks } from "./engine/html.js";
 
 const $ = s => document.querySelector(s);
 const state = new Map();           // id -> {name,text,source}
 let seq = 0, result = null;
+let activeJob = null;
+const LIMITS = {
+  files: 20,
+  fileBytes: 25 * 1024 * 1024,
+  totalBytes: 50 * 1024 * 1024,
+  records: 100000,
+};
 
 /* ---------- idioma (es/en) ---------- */
 function detectLang(){
@@ -255,11 +267,24 @@ let lastPrismaSvg = "";
 /* ---------- carga de ficheros ---------- */
 const drop=$("#drop"), fileInput=$("#file"), filelist=$("#filelist"), runBtn=$("#run"), hint=$("#hint");
 function baseName(n){const b=n.split(/[\\/]/).pop();const d=b.lastIndexOf(".");return d>0?b.slice(0,d):b;}
+function showError(message){const el=$("#error");el.textContent=message;el.classList.remove("hidden");}
+function limitText(kind,name=""){
+  const es=lang==="es";
+  if(kind==="files")return es?`Máximo ${LIMITS.files} ficheros por lote.`:`Maximum ${LIMITS.files} files per batch.`;
+  if(kind==="file")return es?`El fichero «${name}» supera el límite de 25 MB.`:`The file “${name}” exceeds the 25 MB limit.`;
+  return es?"El lote supera el límite total de 50 MB.":"The batch exceeds the 50 MB total limit.";
+}
 function addFiles(arr){
+  $("#error").classList.add("hidden");
+  if(state.size+arr.length>LIMITS.files){showError(limitText("files"));return;}
+  if(arr.some(f=>f.size>LIMITS.fileBytes)){showError(limitText("file",arr.find(f=>f.size>LIMITS.fileBytes).name));return;}
+  const total=[...state.values()].reduce((n,f)=>n+(f.size||0),0)+arr.reduce((n,f)=>n+f.size,0);
+  if(total>LIMITS.totalBytes){showError(limitText("total"));return;}
   for(const f of arr){const id="f"+(seq++);const r=new FileReader();
     // .replace(/^\uFEFF/,""): quita el BOM de Embase/Excel/Windows. Sin esto la primera
     // etiqueta del fichero llega con \uFEFF pegado y se pierde el primer registro.
-    r.onload=e=>{state.set(id,{name:f.name,text:String(e.target.result).replace(/^\uFEFF/,""),source:baseName(f.name)});renderFiles();};
+    r.onload=e=>{state.set(id,{name:f.name,size:f.size,text:String(e.target.result).replace(/^\uFEFF/,""),source:baseName(f.name)});renderFiles();};
+    r.onerror=()=>showError(lang==="es"?`No se pudo leer «${f.name}».`:`Could not read “${f.name}”.`);
     r.readAsText(f);}
 }
 function renderFiles(){
@@ -288,13 +313,6 @@ document.querySelectorAll(".shead").forEach(h=>h.onclick=()=>{
 function unlock(id,open){const s=$("#"+id);s.classList.remove("locked");if(open)s.classList.add("open");}
 
 /* ---------- utilidades ---------- */
-// Escapa también comillas: estos valores vienen de los ficheros del usuario y algunos se insertan
-// dentro de atributos HTML (href). Sin escapar " o ' se puede salir del atributo e inyectar otro.
-function esc(s){return (s==null?"":String(s)).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
-// Neutraliza celdas que Excel/LibreOffice interpretarían como fórmula al abrir el CSV.
-function csvSafe(v){v=v==null?"":String(v);return /^[=+\-@\t\r]/.test(v)?"'"+v:v;}
-function csvEscape(v){v=csvSafe(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
-function toCsv(rows){if(!rows.length)return "";const c=Object.keys(rows[0]);return c.join(",")+"\n"+rows.map(r=>c.map(k=>csvEscape(r[k])).join(",")).join("\n")+"\n";}
 function download(name,data,mime){const b=data instanceof Blob?data:new Blob([data],{type:mime||"text/plain;charset=utf-8"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);}
 function rtfEscape(s){let o="";for(const ch of s){const c=ch.codePointAt(0);if(ch==="\\"||ch==="{"||ch==="}")o+="\\"+ch;else if(c<128)o+=ch;else o+="\\u"+(c>32767?c-65536:c)+"?";}return o;}
 function mdToRtf(md){
@@ -319,16 +337,31 @@ function mdToRtf(md){
 
 /* ---------- ejecutar ---------- */
 runBtn.onclick=async ()=>{
+  if(activeJob){activeJob.cancel();return;}
   $("#error").classList.add("hidden");
-  const runLabel = runBtn.textContent;
-  runBtn.disabled = true;
-  runBtn.innerHTML = `<span class="spin"></span>${lang==="es"?"Procesando…":"Processing…"}`;
-  // Dejar que el navegador PINTE el spinner antes del trabajo síncrono pesado (deduplicar bloquea
-  // el hilo principal). Doble requestAnimationFrame = garantía de un frame pintado. El spinner es
-  // CSS por transform (hilo del compositor), así que sigue girando aunque el JS esté bloqueado.
-  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  const runLabel = T().run;
+  runBtn.disabled = false;
+  runBtn.innerHTML = `<span class="spin"></span>${lang==="es"?"Cancelar":"Cancel"}`;
   try{
-    result=deduplicar([...state.values()]);
+    if(typeof Worker==="undefined"){
+      result=deduplicar([...state.values()],{maxRecords:LIMITS.records});
+    }else{
+      const worker=new Worker(new URL("./engine/worker.js",document.baseURI),{type:"module"});
+      let rejectJob;
+      const promise=new Promise((resolve,reject)=>{
+        rejectJob=reject;
+        worker.onmessage=e=>e.data.ok?resolve(e.data.result):reject(new Error(e.data.error));
+        worker.onerror=e=>reject(new Error(e.message||"Worker error"));
+      });
+      const job={worker,cancel:()=>{
+        worker.terminate();
+        const e=new Error("cancelled");e.code="CANCELLED";rejectJob(e);
+      }};
+      activeJob=job;
+      worker.postMessage({entradas:[...state.values()],opts:{maxRecords:LIMITS.records}});
+      result=await promise;
+      worker.terminate();
+    }
     decisiones.clear(); sugeridas.clear();
     // Los «posible duplicado» (2 identificadores distintos) NO se deciden solos: el autor los
     // valida uno a uno. Se les SUGIERE «diferentes pero relacionadas» (botón resaltado), pero el
@@ -338,24 +371,21 @@ runBtn.onclick=async ()=>{
     unlock("s2",true); unlock("s3",true); unlock("s4",true); unlock("s5",true); unlock("s6",false);
     refresh();
     $("#s2").scrollIntoView({behavior:"smooth",block:"start"});
-  }catch(e){ $("#error").textContent=(e&&e.message)?e.message:String(e); $("#error").classList.remove("hidden"); }
-  finally{ runBtn.textContent = runLabel; runBtn.disabled = false; }
+  }catch(e){if(!e||e.code!=="CANCELLED")showError((e&&e.message)?e.message:String(e));}
+  finally{activeJob?.worker?.terminate();activeJob=null;runBtn.textContent=runLabel;runBtn.disabled=state.size===0;}
 };
 
 /* ---------- aplicar decisiones -> conjunto final ---------- */
 function computeFinal(){
-  const losers=new Set(), extraRemoved=[], pending=[];
-  for(const p of result.reviewFull){
-    const d=decisiones.get(p.n);
-    if(d==="A"){losers.add(p.b);extraRemoved.push({r:p.b,keptr:p.a,reason:"decisión humana: conservar A"});}
-    else if(d==="B"){losers.add(p.a);extraRemoved.push({r:p.a,keptr:p.b,reason:"decisión humana: conservar B"});}
-    else if(d==="criba"||d==null){pending.push({r:p.a,other:p.b,reason:p.reason});}
-    // 'relacion' y 'ambos' -> resuelto, se quedan los dos, no pendiente (la diferencia
-    // —enlazado vs no— se refleja sólo en la anotación de resultados_totales.csv)
+  return applyWebDecisions(result,decisiones);
+}
+function decisionErrorText(e){
+  if(e&&e.code==="DECISION_CONFLICT"){
+    return lang==="es"
+      ? `La decisión sobre el par ${e.decisionPair} retiraría un registro que también aparece en el par ${e.otherPair}. Revísalos juntos y conserva ambos, relaciónalos o déjalos para la criba.`
+      : `The decision on pair ${e.decisionPair} would remove a record that also appears in pair ${e.otherPair}. Review them together and keep both, link them, or defer them to screening.`;
   }
-  const kept=result.kept.filter(r=>!losers.has(r));
-  const removed=result.removed.concat(extraRemoved);
-  return {kept,removed,pending};
+  return (e&&e.message)?e.message:String(e);
 }
 function decidedCount(){let n=0;for(const v of decisiones.values())if(v)n++;return n;}
 function allDecided(){return result && decidedCount()===result.reviewFull.length;}
@@ -453,7 +483,14 @@ function renderPairs(){
     el.querySelector(".psum").onclick=()=>el.classList.toggle("open");
     el.querySelectorAll(".choices button").forEach(b=>b.onclick=(ev)=>{
       ev.stopPropagation();
+      const proposed=new Map(decisiones);proposed.set(p.n,b.dataset.d);
+      try{applyWebDecisions(result,proposed);}
+      catch(e){
+        const err=$("#error");err.textContent=decisionErrorText(e);err.classList.remove("hidden");
+        err.scrollIntoView({behavior:"smooth",block:"center"});return;
+      }
       decisiones.set(p.n,b.dataset.d);
+      $("#error").classList.add("hidden");
       el.querySelectorAll(".choices button").forEach(x=>{x.classList.toggle("sel",x===b);x.classList.remove("sug");});
       el.classList.remove("undecided");el.classList.add("done");
       el.querySelector(".st").textContent=stText(b.dataset.d);
@@ -466,21 +503,12 @@ function labelOf(d){return {A:T().lblA,B:T().lblB,relacion:T().lblRelated,ambos:
 function stText(d){return d?"✓ "+labelOf(d):T().undecided;}
 // Pill de la fila resumen: confirmada (✓) · sugerida sin confirmar (sugerido: …) · sin nada (sin decidir)
 function pillText(d,sug){return d?"✓ "+labelOf(d):(sug?T().suggested+" "+labelOf(sug):T().undecided);}
-function idLinks(r){
-  // El texto visible se escapa; para el href sólo se enlaza si el identificador tiene la forma
-  // esperada (DOI 10.xxxx/… sin espacios ni comillas, PMID sólo dígitos). Si no, se muestra sin enlace.
-  const doiOk=r.doi&&/^10\.\d{4,9}\/[^\s"'<>]+$/.test(r.doi);
-  const pmidOk=r.pmid&&/^\d+$/.test(r.pmid);
-  const doi=r.doi?(doiOk?`<a href="https://doi.org/${encodeURI(r.doi)}" target="_blank" rel="noopener">${esc(r.doi)}</a>`:esc(r.doi)):`<span class="mo">—</span>`;
-  const pmid=r.pmid?(pmidOk?`<a href="https://pubmed.ncbi.nlm.nih.gov/${encodeURIComponent(r.pmid)}/" target="_blank" rel="noopener">${esc(r.pmid)}</a>`:esc(r.pmid)):`<span class="mo">—</span>`;
-  return `<b>DOI:</b> ${doi}&nbsp;·&nbsp;<b>PMID:</b> ${pmid}`;
-}
 function refCard(title,r){
   return `<div class="ref"><h4>${title}</h4>
     <div class="rt">${esc(r.t)||`<span class='mo'>${T().noTitle}</span>`}</div>
     <div class="rm2">${esc(r.au)}</div>
     <div class="rm2">${esc(r.jo)}${r.yr?" · "+esc(r.yr):""}</div>
-    <div class="rm2">${idLinks(r)}${r.pt?` · <b>${T().docType}:</b> ${esc(r.pt)}`:""}<br><span class="mo">${T().srcLabel} ${esc(r.src)}</span></div>
+    <div class="rm2">${identifierLinks(r)}${r.pt?` · <b>${T().docType}:</b> ${esc(r.pt)}`:""}<br><span class="mo">${T().srcLabel} ${esc(r.src)}</span></div>
     ${r.ab?`<div class="ab">${esc(r.ab)}</div>`:`<div class="ab mo">${T().noAbs}</div>`}</div>`;
 }
 
@@ -496,13 +524,8 @@ function masterRows(){
     [H.estado]:estadoLabel(estado,lang),[H.titulo]:r.title,[H.año]:r.year,[H.doi]:r.doi,[H.pmid]:r.pmid,
     [H.tipo]:(r.ptypes||[]).join("; "),[H.fuente]:r.source,[H.relacionado_con]:relTitle,[H.motivo]:motivo});
   const linkOf=new Map(), pendOf=new Map();
-  for(const p of result.reviewFull){
-    const d=decisiones.get(p.n);
-    // 'relacion' (enlazar) -> vinculado, con anotación de a qué se parece; 'ambos' -> mantenido
-    // (distinto y sin relación, no entra en linkOf ni pendOf); 'criba'/sin decidir -> pendiente.
-    if(d==="relacion"){linkOf.set(p.a,{o:p.b,reason:p.reason});linkOf.set(p.b,{o:p.a,reason:p.reason});}
-    else if(d==="criba"||d==null){pendOf.set(p.a,{o:p.b,reason:p.reason});pendOf.set(p.b,{o:p.a,reason:p.reason});}
-  }
+  for(const p of f.linked){linkOf.set(p.a,{o:p.b,reason:p.reason});linkOf.set(p.b,{o:p.a,reason:p.reason});}
+  for(const p of f.pending){pendOf.set(p.r,{o:p.other,reason:p.reason});pendOf.set(p.other,{o:p.r,reason:p.reason});}
   const rows=[];
   for(const {r,keptr,reason} of f.removed) rows.push(row("eliminado",r,keptr.title,reasonI18n(reason,lang)));
   for(const r of f.kept){
@@ -535,11 +558,10 @@ function renderDownloads(){
 // conservados (relacionadas / sin resolver) van anotados como «posible duplicado».
 function dlExcelMaestro(){
   const f=computeFinal();
-  const rev=[];
-  for(const p of result.reviewFull){
-    const d=decisiones.get(p.n);
-    if(d==="relacion"||d==="criba"||d==null) rev.push({r:p.a,other:p.b,reason:p.reason});
-  }
+  const rev=[
+    ...f.linked.map(p=>({r:p.a,other:p.b,reason:p.reason})),
+    ...f.pending,
+  ];
   const xml=excelMaestroFiles(f.kept,f.removed,rev,result.counts.porFuente,lang);
   const enc=new TextEncoder(), files=new Map();
   for(const [k,v] of xml) files.set(k,enc.encode(v));

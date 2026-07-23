@@ -32,8 +32,9 @@ Solo librería estándar de Python 3. Uso:
   python3 dedup.py fichero1 fichero2 ... [--out CARPETA] [--source-names "PubMed,Embase,CENTRAL"]
                    [--merge-threshold 0.5] [--review-threshold 0.3]
 """
-import sys, os, re, csv, argparse, unicodedata, xml.etree.ElementTree as ET
+import sys, os, re, csv, io, argparse, unicodedata, xml.etree.ElementTree as ET
 from i18n import reason_i18n, HEADERS, REPORT, methods_sentence, estado_label  # traducción de la salida (es/en)
+from safe_output import csv_safe
 
 # ------------------------------------------------------------------ normalización
 def strip_accents(s):
@@ -372,7 +373,9 @@ def parse_csv(text, source):
     # El resto del dialecto se fija al estándar de Excel, que es el del motor JS (paridad).
     try: delim = csv.Sniffer().sniff(text[:4096], delimiters=";,\t").delimiter
     except Exception: delim = ","
-    reader = csv.DictReader(text.splitlines(), delimiter=delim,
+    # StringIO conserva los saltos dentro de campos entrecomillados. splitlines()
+    # los eliminaba y podía convertir "first line\nsecond line" en "first linesecond line".
+    reader = csv.DictReader(io.StringIO(text), delimiter=delim,
                             quotechar='"', doublequote=True)
     def pick(row, *names):
         low = {k.lower().strip(): v for k, v in row.items() if k}
@@ -829,12 +832,6 @@ def write_ris(recs, path):
             srcs = "; ".join([r["source"]] + r["also_in"])
             g.write(f"DB  - {srcs}\n")
             g.write("ER  - \n\n")
-
-def csv_safe(v):
-    # Neutraliza las celdas que Excel/LibreOffice interpretarían como fórmula al abrir el CSV
-    # (un título que empiece por "=", "+", "-" o "@" viene del fichero de entrada, no de nosotras).
-    s = "" if v is None else str(v)
-    return "'" + s if s[:1] in ("=", "+", "-", "@", "\t", "\r") else s
 
 def _wrow(w, fila):
     w.writerow([csv_safe(c) for c in fila])

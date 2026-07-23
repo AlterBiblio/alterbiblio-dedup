@@ -215,20 +215,121 @@ function attrIs(attrs, name, value) {
   return m !== null && (m[2] ?? m[3]) === value;
 }
 
-// dedup.py:156-181 — mismos campos que la versión ElementTree, extraídos por regex
-// (sin DOMParser en Node y sin dependencias). ET lanza sobre XML no bien formado;
-// aquí se exige al menos una etiqueta para no aceptar prosa en silencio.
-//
-// Paridad verificada con XML de PubMed bien formado (el que emite NCBI). Limitaciones
-// conocidas frente al ElementTree de Python, sólo alcanzables con XML anómalo que NCBI
-// no produce hoy (confirmadas en revisión adversarial 2026-07-18):
-//   1. XML mal formado (etiqueta sin cerrar, `<`/`&` crudos): Python lanza y aborta el
-//      lote; este parser por regex puede devolver un registro parcial en silencio.
-//      Pendiente de endurecer en la fase 3 — el navegador usará DOMParser, que valida
-//      la buena formación. Ver tarea de robustez XML.
-//   2. `>` dentro de un valor de atributo y secciones CDATA: extracción incorrecta.
+function xmlError(detail) {
+  throw new Error(`XML mal formado: ${detail}`);
+}
+
+function findTagEnd(xml, start) {
+  let quote = null;
+  for (let i = start; i < xml.length; i++) {
+    const c = xml[i];
+    if (quote) {
+      if (c === quote) quote = null;
+    } else if (c === '"' || c === "'") quote = c;
+    else if (c === ">") return i;
+  }
+  return -1;
+}
+
+// Validador estricto sin dependencias para Node. En navegador se usa además DOMParser.
+// No extrae datos: garantiza que el parser histórico nunca vea XML parcial.
+function assertWellFormedXmlFallback(xml) {
+  const stack = [];
+  let roots = 0, i = 0;
+  const entityOk = /^(?:#\d+|#x[0-9a-fA-F]+|amp|lt|gt|quot|apos)$/;
+  const validateEntities = (s) => {
+    for (const m of s.matchAll(/&([^;\s<]*)(;?)/g)) {
+      if (m[2] !== ";" || !entityOk.test(m[1])) xmlError("entidad no válida");
+    }
+  };
+  while (i < xml.length) {
+    const lt = xml.indexOf("<", i);
+    if (lt < 0) {
+      const tail = xml.slice(i);
+      validateEntities(tail);
+      if (!stack.length && tail.trim()) xmlError("texto fuera del elemento raíz");
+      break;
+    }
+    const text = xml.slice(i, lt);
+    validateEntities(text);
+    if (!stack.length && text.trim()) xmlError("texto fuera del elemento raíz");
+    if (xml.startsWith("<!--", lt)) {
+      const end = xml.indexOf("-->", lt + 4);
+      if (end < 0) xmlError("comentario sin cerrar");
+      i = end + 3; continue;
+    }
+    if (xml.startsWith("<![CDATA[", lt)) {
+      if (!stack.length) xmlError("CDATA fuera del elemento raíz");
+      const end = xml.indexOf("]]>", lt + 9);
+      if (end < 0) xmlError("CDATA sin cerrar");
+      i = end + 3; continue;
+    }
+    if (xml.startsWith("<?", lt)) {
+      const end = xml.indexOf("?>", lt + 2);
+      if (end < 0) xmlError("instrucción de procesamiento sin cerrar");
+      i = end + 2; continue;
+    }
+    if (/^<!DOCTYPE\b/i.test(xml.slice(lt))) {
+      let end = lt + 9, quote = null, subset = 0;
+      for (; end < xml.length; end++) {
+        const c = xml[end];
+        if (quote) { if (c === quote) quote = null; continue; }
+        if (c === '"' || c === "'") quote = c;
+        else if (c === "[") subset++;
+        else if (c === "]") subset--;
+        else if (c === ">" && subset === 0) break;
+      }
+      if (end >= xml.length) xmlError("DOCTYPE sin cerrar");
+      i = end + 1; continue;
+    }
+    const end = findTagEnd(xml, lt + 1);
+    if (end < 0) xmlError("etiqueta sin cerrar");
+    const raw = xml.slice(lt + 1, end).trim();
+    const closing = raw.startsWith("/");
+    const selfClosing = raw.endsWith("/");
+    const body = closing ? raw.slice(1).trim() : (selfClosing ? raw.slice(0, -1).trim() : raw);
+    const m = /^([A-Za-z_][\w:.-]*)(?:\s+[\s\S]*)?$/.exec(body);
+    if (!m) xmlError("etiqueta no válida");
+    validateEntities(body);
+    const name = m[1];
+    if (!closing) {
+      let attrs = body.slice(name.length).trim();
+      const seenAttrs = new Set();
+      while (attrs) {
+        const am = /^([A-Za-z_][\w:.-]*)\s*=\s*("([^"]*)"|'([^']*)')/.exec(attrs);
+        if (!am) xmlError(`atributo no válido en <${name}>`);
+        if (seenAttrs.has(am[1])) xmlError(`atributo duplicado ${am[1]}`);
+        seenAttrs.add(am[1]);
+        attrs = attrs.slice(am[0].length).trim();
+      }
+    }
+    if (closing) {
+      if (/\s/.test(body) || selfClosing) xmlError("etiqueta de cierre no válida");
+      if (stack.pop() !== name) xmlError(`cierre inesperado </${name}>`);
+    } else if (!selfClosing) {
+      if (!stack.length) roots++;
+      stack.push(name);
+    } else if (!stack.length) roots++;
+    i = end + 1;
+  }
+  if (stack.length) xmlError(`falta cerrar <${stack[stack.length - 1]}>`);
+  if (roots !== 1) xmlError("se esperaba un único elemento raíz");
+}
+
+function assertWellFormedXml(xml) {
+  if (typeof DOMParser !== "undefined") {
+    const doc = new DOMParser().parseFromString(xml, "application/xml");
+    if (doc.querySelector("parsererror")) xmlError("el documento no es XML válido");
+  }
+  // También se ejecuta en navegador para mantener las mismas reglas que en Node.
+  assertWellFormedXmlFallback(xml);
+}
+
+// dedup.py:156-181 — mismos campos que la versión ElementTree. La extracción ligera
+// se conserva por paridad y ausencia de dependencias, pero sólo después de validar el
+// documento completo con DOMParser (navegador) y el validador estricto (Node).
 export function parsePubmedXml(text, source) {
-  if (!/<\w/.test(text)) throw new Error("XML mal formado: no se encontró ninguna etiqueta");
+  assertWellFormedXml(text);
   const out = [];
   for (const art of xmlElements(text, "PubmedArticle")) {
     const a = art.inner;

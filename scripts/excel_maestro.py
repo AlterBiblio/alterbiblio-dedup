@@ -17,6 +17,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.utils import get_column_letter
 from clasificar import clasificar_estudio, confianza_par
+from safe_output import force_openpyxl_text
 
 # --- paleta sobria (marca) ---
 TINTA = "FF000000"; OFFWHITE = "FFF7F7F7"; LIMA = "FFD6FF00"; SUAVE = "FFFCFCEA"
@@ -59,7 +60,7 @@ def _cab(ws, headers):
 
 def _fila(ws, i, valores, wrap_cols=()):
     for j, v in enumerate(valores, 1):
-        c = ws.cell(i, j, v); c.font = CEL_FONT; c.border = BORDER
+        c = force_openpyxl_text(ws.cell(i, j, v)); c.font = CEL_FONT; c.border = BORDER
         c.alignment = WRAP if j in wrap_cols else TOP
 
 def _anchos(ws, anchos):
