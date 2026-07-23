@@ -134,6 +134,7 @@
     <div class="shead"><span class="num">01/</span><h2 data-i18n="s1">Deduplicación · sube las exportaciones</h2></div>
     <div class="sbody">
       <p class="note" style="margin-top:0" data-i18n-html="s1note">Un fichero por base de datos (RIS <code>.ris</code>, MEDLINE/PubMed <code>.nbib</code>, PubMed XML <code>.xml</code>, BibTeX <code>.bib</code> o CSV). La etiqueta de cada fichero es el nombre de la fuente en el recuento y el solapamiento.</p>
+      <p class="note" data-i18n-html="s1embase"><b>En Embase, descarga en RIS.</b> Si exportas en CSV, marca <b>Fields by: Row</b>: la opción <i>Column</i> pierde el tipo de documento, junta todos los autores en una sola cadena e incrusta la cita completa en el nombre de la revista. Las cifras de deduplicación salen iguales, pero las referencias que exportas después son de peor calidad.</p>
       <div class="drop" id="drop">
         <p style="margin:0" data-i18n-html="drop"><b>Arrastra aquí</b> tus ficheros o <u>haz clic para elegirlos</u></p>
         <input type="file" id="file" multiple accept=".ris,.nbib,.xml,.bib,.csv,.txt" class="hidden">
@@ -200,7 +201,7 @@
   <footer>
     <div class="cite">
       <p class="citehead" data-i18n="citeHead">Cómo citar</p>
-      <p class="citebox"><span id="citetext">García-Puente M. alterbiblio-dedup (Version 1.2.1) [software]. AlterBiblio; 2026. <a href="https://doi.org/10.5281/zenodo.21469292" target="_blank" rel="noopener">https://doi.org/10.5281/zenodo.21469292</a></span><button class="ghost citebtn" id="citecopy" data-i18n="citeCopy">Copiar</button></p>
+      <p class="citebox"><span id="citetext">García-Puente M. alterbiblio-dedup (Version 1.2.2) [software]. AlterBiblio; 2026. <a href="https://doi.org/10.5281/zenodo.21469292" target="_blank" rel="noopener">https://doi.org/10.5281/zenodo.21469292</a></span><button class="ghost citebtn" id="citecopy" data-i18n="citeCopy">Copiar</button></p>
     </div>
     <p><span data-i18n="footerTool">Herramienta abierta de</span> <b><a href="https://alterbiblio.com" target="_blank" rel="noopener">AlterBiblio</a></b> <span data-i18n="footerRest">· deduplicación conservadora ·</span> <a href="https://github.com/AlterBiblio/alterbiblio-dedup" target="_blank" rel="noopener" data-i18n="footerGh">código y algoritmo en GitHub</a>. <span data-i18n="footerPrinciple">El DOI por sí solo nunca fusiona; los registros de ensayo se mantienen aparte; los pares ambiguos van a decisión humana.</span></p>
     <p id="artlink" class="hidden"></p>
@@ -287,8 +288,12 @@ document.querySelectorAll(".shead").forEach(h=>h.onclick=()=>{
 function unlock(id,open){const s=$("#"+id);s.classList.remove("locked");if(open)s.classList.add("open");}
 
 /* ---------- utilidades ---------- */
-function esc(s){return (s==null?"":String(s)).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]));}
-function csvEscape(v){v=v==null?"":String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
+// Escapa también comillas: estos valores vienen de los ficheros del usuario y algunos se insertan
+// dentro de atributos HTML (href). Sin escapar " o ' se puede salir del atributo e inyectar otro.
+function esc(s){return (s==null?"":String(s)).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
+// Neutraliza celdas que Excel/LibreOffice interpretarían como fórmula al abrir el CSV.
+function csvSafe(v){v=v==null?"":String(v);return /^[=+\-@\t\r]/.test(v)?"'"+v:v;}
+function csvEscape(v){v=csvSafe(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
 function toCsv(rows){if(!rows.length)return "";const c=Object.keys(rows[0]);return c.join(",")+"\n"+rows.map(r=>c.map(k=>csvEscape(r[k])).join(",")).join("\n")+"\n";}
 function download(name,data,mime){const b=data instanceof Blob?data:new Blob([data],{type:mime||"text/plain;charset=utf-8"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1500);}
 function rtfEscape(s){let o="";for(const ch of s){const c=ch.codePointAt(0);if(ch==="\\"||ch==="{"||ch==="}")o+="\\"+ch;else if(c<128)o+=ch;else o+="\\u"+(c>32767?c-65536:c)+"?";}return o;}
@@ -462,8 +467,12 @@ function stText(d){return d?"✓ "+labelOf(d):T().undecided;}
 // Pill de la fila resumen: confirmada (✓) · sugerida sin confirmar (sugerido: …) · sin nada (sin decidir)
 function pillText(d,sug){return d?"✓ "+labelOf(d):(sug?T().suggested+" "+labelOf(sug):T().undecided);}
 function idLinks(r){
-  const doi=r.doi?`<a href="https://doi.org/${esc(r.doi)}" target="_blank" rel="noopener">${esc(r.doi)}</a>`:`<span class="mo">—</span>`;
-  const pmid=r.pmid?`<a href="https://pubmed.ncbi.nlm.nih.gov/${esc(r.pmid)}/" target="_blank" rel="noopener">${esc(r.pmid)}</a>`:`<span class="mo">—</span>`;
+  // El texto visible se escapa; para el href sólo se enlaza si el identificador tiene la forma
+  // esperada (DOI 10.xxxx/… sin espacios ni comillas, PMID sólo dígitos). Si no, se muestra sin enlace.
+  const doiOk=r.doi&&/^10\.\d{4,9}\/[^\s"'<>]+$/.test(r.doi);
+  const pmidOk=r.pmid&&/^\d+$/.test(r.pmid);
+  const doi=r.doi?(doiOk?`<a href="https://doi.org/${encodeURI(r.doi)}" target="_blank" rel="noopener">${esc(r.doi)}</a>`:esc(r.doi)):`<span class="mo">—</span>`;
+  const pmid=r.pmid?(pmidOk?`<a href="https://pubmed.ncbi.nlm.nih.gov/${encodeURIComponent(r.pmid)}/" target="_blank" rel="noopener">${esc(r.pmid)}</a>`:esc(r.pmid)):`<span class="mo">—</span>`;
   return `<b>DOI:</b> ${doi}&nbsp;·&nbsp;<b>PMID:</b> ${pmid}`;
 }
 function refCard(title,r){

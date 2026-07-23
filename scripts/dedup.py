@@ -830,21 +830,30 @@ def write_ris(recs, path):
             g.write(f"DB  - {srcs}\n")
             g.write("ER  - \n\n")
 
+def csv_safe(v):
+    # Neutraliza las celdas que Excel/LibreOffice interpretarían como fórmula al abrir el CSV
+    # (un título que empiece por "=", "+", "-" o "@" viene del fichero de entrada, no de nosotras).
+    s = "" if v is None else str(v)
+    return "'" + s if s[:1] in ("=", "+", "-", "@", "\t", "\r") else s
+
+def _wrow(w, fila):
+    w.writerow([csv_safe(c) for c in fila])
+
 def write_dupes_csv(removed, path, lang="es"):
     with open(path, "w", encoding="utf-8", newline="") as g:
         w = csv.writer(g)
         w.writerow(HEADERS["duplicados"][lang])
         for r, keptr, reason in sorted(removed, key=lambda x: x[0]["source"]):
-            w.writerow([reason_i18n(reason, lang), r["source"], r["title"], r["doi"], r["year"], "; ".join(r["ptypes"]),
-                        keptr["source"], keptr["title"], keptr["doi"], "; ".join(keptr["ptypes"])])
+            _wrow(w, [reason_i18n(reason, lang), r["source"], r["title"], r["doi"], r["year"], "; ".join(r["ptypes"]),
+                      keptr["source"], keptr["title"], keptr["doi"], "; ".join(keptr["ptypes"])])
 
 def write_review_csv(review, path, lang="es"):
     with open(path, "w", encoding="utf-8", newline="") as g:
         w = csv.writer(g)
         w.writerow(HEADERS["revisar"][lang])
         for n, (r, other, reason) in enumerate(review, 1):
-            w.writerow([n, reason_i18n(reason, lang), r["source"], r["title"], r["doi"], r["year"], "; ".join(r["ptypes"]),
-                        other["source"], other["title"], other["doi"], other["year"], "; ".join(other["ptypes"])])
+            _wrow(w, [n, reason_i18n(reason, lang), r["source"], r["title"], r["doi"], r["year"], "; ".join(r["ptypes"]),
+                      other["source"], other["title"], other["doi"], other["year"], "; ".join(other["ptypes"])])
 
 def write_report(sources_counts, kept, removed, review, path, decisiones_resumen=None, lang="es", referred=None):
     # decisiones_resumen: {decisión: nº} de la pasada con --decisiones, o None
@@ -906,8 +915,9 @@ def write_totales_csv(kept, removed, review, path, lang="es", linked=None):
         link_of[id(b)] = a
 
     def fila(estado, rec, rel_title, motivo):
-        return [estado_label(estado, lang), rec["title"], rec["year"], rec["doi"], rec["pmid"],
-                "; ".join(rec["ptypes"]), rec["source"], rel_title, motivo]
+        return [csv_safe(c) for c in
+                [estado_label(estado, lang), rec["title"], rec["year"], rec["doi"], rec["pmid"],
+                 "; ".join(rec["ptypes"]), rec["source"], rel_title, motivo]]
 
     with open(path, "w", encoding="utf-8", newline="") as g:
         w = csv.writer(g)
