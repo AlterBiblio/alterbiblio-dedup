@@ -51,7 +51,7 @@ corrida original. Nuestras cifras son las de la Tabla 1 (reproducidas 2026-07-20
   fusión, decisiones auditables, PRISMA); (c) DOIs realmente distintos se conservan y anotan en
   vez de fusionarse.
 
-## Ejemplo real (Cañadas — búsqueda multi-base en oncología urológica)
+## Ejemplo real (Ferreiro — búsqueda multi-base en oncología urológica)
 
 800 registros (560 Embase + 197 PubMed + 43 CENTRAL) → **629 únicos · 171 duplicados · 41
 dudosos a revisión**. Reproducido 2026-07-20. (No mide accuracy; ilustra el pipeline completo.)
