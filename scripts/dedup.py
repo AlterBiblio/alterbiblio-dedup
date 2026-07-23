@@ -364,10 +364,16 @@ def parse_bibtex(text, source):
     return out
 
 def parse_csv(text, source):
+    text = _sin_preambulo(text)
     out = []
-    try: dialect = csv.Sniffer().sniff(text[:4096], delimiters=";,\t")
-    except Exception: dialect = csv.excel
-    reader = csv.DictReader(text.splitlines(), dialect=dialect)
+    # Del sniffer sólo se toma el DELIMITADOR. Sus demás conclusiones no son fiables:
+    # en exports de Embase deduce doublequote=False y, como Embase escapa las comillas
+    # internas duplicándolas (""), las columnas se desplazan y los campos se mezclan.
+    # El resto del dialecto se fija al estándar de Excel, que es el del motor JS (paridad).
+    try: delim = csv.Sniffer().sniff(text[:4096], delimiters=";,\t").delimiter
+    except Exception: delim = ","
+    reader = csv.DictReader(text.splitlines(), delimiter=delim,
+                            quotechar='"', doublequote=True)
     def pick(row, *names):
         low = {k.lower().strip(): v for k, v in row.items() if k}
         for n in names:
@@ -387,25 +393,99 @@ def parse_csv(text, source):
                        pmid=pick(row, "pmid"), abstract=pick(row, "abstract", "resumen")))
     return out
 
+# Etiquetas del export "campo por línea" de Embase (extensión .csv pero NO es una tabla:
+# cada línea es "NOMBRE DEL CAMPO","valor" y cada referencia ocupa un bloque de líneas
+# que empieza en TITLE). Sin esto, un lector tabular convierte cada línea en un registro.
+EMBASE_CAMPOS = {"TITLE", "AUTHOR NAMES", "SOURCE", "SOURCE TITLE", "PUBLICATION YEAR",
+                 "PUBLICATION TYPE", "DATE OF PUBLICATION", "VOLUME", "ISSUE", "FIRST PAGE",
+                 "LAST PAGE", "DOI", "ABSTRACT", "ORIGINAL (NON-ENGLISH) TITLE",
+                 "AiP/IP ENTRY DATE", "FULL RECORD ENTRY DATE", "AUTHOR KEYWORDS",
+                 "EMTREE DRUG INDEX TERMS", "EMTREE MEDICAL INDEX TERMS",
+                 "EMBASE ACCESSION ID", "MEDLINE PMID", "PMID", "ISSN", "CAS REGISTRY NUMBER"}
+
+# Los exports de Embase pueden llevar un preámbulo antes de los datos: la línea
+# "SEARCH QUERY","<cadena>" (opción «Search query» del diálogo de exportación), una
+# fila de guiones y una línea en blanco. Sin retirarlo, el lector tabular toma la
+# consulta por cabecera y el lector campo-por-línea no reconoce el formato.
+def _sin_preambulo(text):
+    lineas = text.splitlines(True)
+    i = 0
+    while i < len(lineas):
+        l = lineas[i].strip()
+        if l and set(l) != {"-"} and not re.match(r'^"?SEARCH QUERY"?\s*,', l, re.I):
+            break
+        i += 1
+    return "".join(lineas[i:])
+
+def _es_embase_campos(head):
+    """True si el texto tiene la forma "CAMPO","valor" con etiquetas de Embase."""
+    lineas = [l for l in _sin_preambulo(head).splitlines() if l.strip()][:40]
+    if len(lineas) < 3: return False
+    etiquetas = set()
+    for l in lineas:
+        m = re.match(r'^"([^"]+)",', l)
+        if not m: return False          # una sola línea que no encaje descarta el formato
+        etiquetas.add(m.group(1))
+    # exige que sean etiquetas reconocibles, no dos columnas de una tabla cualquiera
+    return len(etiquetas & EMBASE_CAMPOS) >= 3
+
+def parse_embase_campos(text, source):
+    """Export de Embase campo por línea: cada registro empieza en TITLE."""
+    text = _sin_preambulo(text)
+    out = []
+    bloques, actual = [], None
+    for linea in text.splitlines():
+        if not linea.strip(): continue
+        try: campos = next(csv.reader([linea]))
+        except Exception: continue
+        if not campos: continue
+        etiqueta, valores = campos[0].strip(), [v.strip() for v in campos[1:] if v.strip()]
+        if etiqueta == "TITLE":
+            if actual: bloques.append(actual)
+            actual = {}
+        if actual is None: continue      # basura anterior al primer TITLE
+        if valores: actual.setdefault(etiqueta, []).extend(valores)
+    if actual: bloques.append(actual)
+
+    for b in bloques:
+        uno = lambda *k: next((b[x][0] for x in k if b.get(x)), "")
+        title = uno("TITLE")
+        if not title: continue
+        out.append(rec(source, title=title, doi=uno("DOI"),
+                       year=uno("PUBLICATION YEAR", "DATE OF PUBLICATION"),
+                       authors=b.get("AUTHOR NAMES", []),
+                       journal=uno("SOURCE TITLE", "SOURCE"),
+                       volume=uno("VOLUME"), issue=uno("ISSUE"),
+                       spage=uno("FIRST PAGE"),
+                       pmid=uno("MEDLINE PMID", "PMID"),
+                       abstract=uno("ABSTRACT"),
+                       accession=uno("EMBASE ACCESSION ID"),
+                       keywords=" ; ".join(b.get("AUTHOR KEYWORDS", [])),
+                       ptypes=b.get("PUBLICATION TYPE", [])))
+    return out
+
 def detect_format(path):
     ext = os.path.splitext(path)[1].lower()
     if ext in (".nbib", ".medline"): return "medline"
     if ext == ".xml": return "pubmed_xml"
     if ext == ".bib": return "bibtex"
-    if ext == ".csv": return "csv"
+    if ext == ".csv":
+        head = open(path, encoding="utf-8-sig", errors="replace").read(4000)
+        return "embase_campos" if _es_embase_campos(head) else "csv"
     if ext in (".ris",): return "ris"
     # .txt u otros: sniff
-    head = open(path, encoding="utf-8", errors="replace").read(2000)
+    head = open(path, encoding="utf-8-sig", errors="replace").read(2000)
     if re.search(r"^TY\s{2}- ", head, re.M): return "ris"
     if re.search(r"^PMID- ", head, re.M): return "medline"
     if "<PubmedArticle" in head: return "pubmed_xml"
     if re.search(r"^@\w+\s*\{", head, re.M): return "bibtex"
+    if _es_embase_campos(head): return "embase_campos"
     if _parece_tabla(head): return "csv"
     return None
 
 def _parece_tabla(head):
     # tabular de verdad: 2+ líneas con el mismo nº de separadores (,;\t) — si no, no es CSV
-    lineas = head.splitlines()
+    lineas = _sin_preambulo(head).splitlines()
     if len(head) == 2000: lineas = lineas[:-1]   # última línea partida por el corte de lectura
     lineas = [l for l in lineas if l.strip()][:5]
     if len(lineas) < 2: return False
@@ -416,7 +496,7 @@ def _parece_tabla(head):
     return False
 
 PARSERS = {"ris": parse_ris, "medline": parse_medline, "pubmed_xml": parse_pubmed_xml,
-           "bibtex": parse_bibtex, "csv": parse_csv}
+           "bibtex": parse_bibtex, "csv": parse_csv, "embase_campos": parse_embase_campos}
 
 # ------------------------------------------------------------------ fusión
 def is_abstract_page(x):   # página tipo e824 / S76 / A12 -> abstract de reunión o suplemento
@@ -520,6 +600,11 @@ def dedup(records, merge_thr=0.5, review_thr=0.3, prio=None):
 
     def _norm_journal(x):
         return re.sub(r"[^a-z0-9]", "", (x["journal"] or "").lower())
+    def _es_registro_central(x):
+        # CENTRAL no es una revista: es un registro de ensayos que reindexa artículos de otras
+        # fuentes. Un registro suyo nunca es una "co-publicación" del artículo original, aunque su
+        # campo de revista y su pseudo-DOI (10.1002/central/cn-...) difieran de los del original.
+        return is_cn_doi(x["doi"] or "") or _norm_journal(x).startswith("cochranecentralregister")
     def copub_reason(a, b):
         # Misma obra co-publicada en dos revistas: mismo título normalizado, mismo primer autor,
         # mismo año, revista distinta y DOI distinto. Dos mecanismos frecuentes: material de
@@ -528,6 +613,7 @@ def dedup(records, merge_thr=0.5, review_thr=0.3, prio=None):
         # published", p. ej. Clinical Otolaryngology ↔ British Journal of Anaesthesia). Se recomienda
         # conservar UN solo registro (el indexado en MEDLINE si solo uno tiene PMID). No fusiona: solo
         # afina el motivo del par que ya va a revisión, sin mover ninguna cifra.
+        if _es_registro_central(a) or _es_registro_central(b): return None
         if not (a["ntitle"] and a["ntitle"] == b["ntitle"]): return None
         if not (a["fauthor"] and a["fauthor"] == b["fauthor"]): return None
         if not (a["year"] and a["year"] == b["year"]): return None
@@ -866,7 +952,9 @@ def main():
         fmt = a.format or detect_format(path)
         if fmt is None:
             sys.exit(_err_formato(path))
-        text = open(path, encoding="utf-8", errors="replace").read()
+        # utf-8-sig: quita el BOM que ponen Embase/Excel/Windows. Sin esto, la primera
+        # etiqueta del fichero llega con \ufeff pegado y se pierde el primer registro.
+        text = open(path, encoding="utf-8-sig", errors="replace").read()
         src = (names[i].strip() if names and i < len(names)
                else os.path.splitext(os.path.basename(path))[0])
         recs = PARSERS[fmt](text, src)

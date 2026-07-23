@@ -19,75 +19,134 @@
   "fixtures": [
     {
       "name": "basico-multiformato",
-      "files": ["embase_sample.ris", "pubmed_sample.nbib", "scopus_sample.bib",
-                "central_sample.csv", "pubmed_xml_sample.xml"],
+      "files": [
+        "embase_sample.ris",
+        "pubmed_sample.nbib",
+        "scopus_sample.bib",
+        "central_sample.csv",
+        "pubmed_xml_sample.xml"
+      ],
       "source_names": "Embase,PubMed,Scopus,CENTRAL,PubMedXML",
       "expect": {
         "duplicados": 3,
         "unicos": 10,
         "dudosos": 2,
-        "motivos_incluyen": ["DOI+título", "título+año"],
-        "ris_contiene": ["nutritional status in elderly surgical patients", "s2724-6051", "s0393-2249"],
-        "motivos_duda_incluyen": "DOIs distintos",
-        "dudosos_texto_incluye": ["phase angle"]
+        "motivos_incluyen": [
+          "DOI+título",
+          "título+año"
+        ],
+        "ris_contiene": [
+          "nutritional status in elderly surgical patients",
+          "s2724-6051",
+          "s0393-2249"
+        ],
+        "motivos_duda_incluyen": [
+          "DOIs distintos"
+        ],
+        "dudosos_texto_incluye": [
+          "phase angle"
+        ]
       }
     },
     {
       "name": "patrones-reales",
-      "files": ["patterns/pubmed.nbib", "patterns/embase.ris", "patterns/registry.ris"],
+      "files": [
+        "patterns/pubmed.nbib",
+        "patterns/embase.ris",
+        "patterns/registry.ris"
+      ],
       "source_names": "PubMed,Embase,Registro",
       "expect": {
         "duplicados": 2,
         "unicos": 7,
         "dudosos": 2,
-        "ris_contiene": ["clinicaltrials.gov"],
-        "ris_una_vez": ["small cell carcinoma of the bladder treated",
-                        "prehabilitation in muscle invasive bladder cancer"],
-        "motivos_duda_incluyen": ["abstract de congreso vs artículo", "respuesta/comentario"]
+        "ris_contiene": [
+          "clinicaltrials.gov"
+        ],
+        "ris_una_vez": [
+          "small cell carcinoma of the bladder treated",
+          "prehabilitation in muscle invasive bladder cancer"
+        ],
+        "motivos_duda_incluyen": [
+          "abstract de congreso vs artículo",
+          "respuesta/comentario"
+        ]
       }
     },
     {
       "name": "cobertura-pmid",
-      "files": ["cover_pmid_a.nbib", "cover_pmid_b.ris"],
+      "files": [
+        "cover_pmid_a.nbib",
+        "cover_pmid_b.ris"
+      ],
       "source_names": "PubMed,Embase",
       "expect": {
         "duplicados": 1,
         "unicos": 2,
         "dudosos": 0,
-        "motivos_incluyen": ["PMID"]
+        "motivos_incluyen": [
+          "PMID"
+        ]
       }
     },
     {
       "name": "cobertura-vol-pag-autor-anio",
-      "files": ["cover_struct_a.nbib", "cover_struct_b.ris"],
+      "files": [
+        "cover_struct_a.nbib",
+        "cover_struct_b.ris"
+      ],
       "source_names": "PubMed,Embase",
       "expect": {
         "duplicados": 1,
         "unicos": 1,
         "dudosos": 0,
-        "motivos_incluyen": ["vol+pág+autor+año"]
+        "motivos_incluyen": [
+          "vol+pág+autor+año"
+        ]
       }
     },
     {
       "name": "cobertura-id-embase",
-      "files": ["cover_eid_embase.ris", "cover_eid_central.ris"],
+      "files": [
+        "cover_eid_embase.ris",
+        "cover_eid_central.ris"
+      ],
       "source_names": "Embase,CENTRAL",
       "expect": {
         "duplicados": 1,
         "unicos": 1,
         "dudosos": 0,
-        "motivos_incluyen": ["ID de Embase"]
+        "motivos_incluyen": [
+          "ID de Embase"
+        ]
       }
     },
     {
       "name": "cobertura-cn-sin-pui-no-fusiona",
-      "files": ["cover_eid_nomatch_embase.ris", "cover_eid_nomatch_central.ris"],
+      "files": [
+        "cover_eid_nomatch_embase.ris",
+        "cover_eid_nomatch_central.ris"
+      ],
       "source_names": "Embase,CENTRAL",
       "expect": {
         "duplicados": 0,
         "unicos": 2,
         "dudosos": 1,
-        "motivos_duda_incluyen": "DOIs distintos"
+        "motivos_duda_incluyen": [
+          "DOIs distintos"
+        ]
+      }
+    },
+    {
+      "name": "embase-campos-por-linea",
+      "files": [
+        "embase_campos_sample.csv"
+      ],
+      "source_names": "EMBASE",
+      "expect": {
+        "duplicados": 0,
+        "unicos": 3,
+        "dudosos": 0
       }
     }
   ]

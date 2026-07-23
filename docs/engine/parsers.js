@@ -390,6 +390,71 @@ export function parseCsv(text, source) {
   return out;
 }
 
+// --- Embase "campo por línea" (dedup.py: EMBASE_CAMPOS / parse_embase_campos) ---
+// Export de Embase con extensión .csv que NO es una tabla: cada línea es
+// "NOMBRE DEL CAMPO","valor" y cada referencia ocupa un bloque que empieza en TITLE.
+// Sin esto, un lector tabular convierte cada línea en un registro basura.
+const EMBASE_CAMPOS = new Set(["TITLE", "AUTHOR NAMES", "SOURCE", "SOURCE TITLE",
+  "PUBLICATION YEAR", "PUBLICATION TYPE", "DATE OF PUBLICATION", "VOLUME", "ISSUE",
+  "FIRST PAGE", "LAST PAGE", "DOI", "ABSTRACT", "ORIGINAL (NON-ENGLISH) TITLE",
+  "AiP/IP ENTRY DATE", "FULL RECORD ENTRY DATE", "AUTHOR KEYWORDS",
+  "EMTREE DRUG INDEX TERMS", "EMTREE MEDICAL INDEX TERMS", "EMBASE ACCESSION ID",
+  "MEDLINE PMID", "PMID", "ISSN", "CAS REGISTRY NUMBER"]);
+
+function esEmbaseCampos(head) {
+  const lineas = splitLines(head).filter(l => l.trim()).slice(0, 40);
+  if (lineas.length < 3) return false;
+  const etiquetas = new Set();
+  for (const l of lineas) {
+    const m = /^"([^"]+)",/.exec(l);
+    if (!m) return false;
+    etiquetas.add(m[1]);
+  }
+  let n = 0;
+  for (const e of etiquetas) if (EMBASE_CAMPOS.has(e)) n++;
+  return n >= 3;
+}
+
+export function parseEmbaseCampos(text, source) {
+  const out = [];
+  const bloques = [];
+  let actual = null;
+  for (const linea of splitLines(text)) {
+    if (!linea.trim()) continue;
+    const campos = csvRows(linea, ",")[0];
+    if (!campos || !campos.length) continue;
+    const etiqueta = (campos[0] || "").trim();
+    const valores = campos.slice(1).map(v => v.trim()).filter(Boolean);
+    if (etiqueta === "TITLE") {
+      if (actual) bloques.push(actual);
+      actual = {};
+    }
+    if (actual === null) continue;      // basura anterior al primer TITLE
+    if (valores.length) (actual[etiqueta] = actual[etiqueta] || []).push(...valores);
+  }
+  if (actual) bloques.push(actual);
+
+  for (const b of bloques) {
+    const uno = (...ks) => { for (const k of ks) if (b[k] && b[k].length) return b[k][0]; return ""; };
+    const title = uno("TITLE");
+    if (!title) continue;
+    out.push(rec(source, {
+      title, doi: uno("DOI"),
+      year: uno("PUBLICATION YEAR", "DATE OF PUBLICATION"),
+      authors: b["AUTHOR NAMES"] || [],
+      journal: uno("SOURCE TITLE", "SOURCE"),
+      volume: uno("VOLUME"), issue: uno("ISSUE"),
+      spage: uno("FIRST PAGE"),
+      pmid: uno("MEDLINE PMID", "PMID"),
+      abstract: uno("ABSTRACT"),
+      accession: uno("EMBASE ACCESSION ID"),
+      keywords: (b["AUTHOR KEYWORDS"] || []).join(" ; "),
+      ptypes: b["PUBLICATION TYPE"] || [],
+    }));
+  }
+  return out;
+}
+
 // dedup.py:230-244 — en Python detect_format(path) lee el fichero; en el navegador
 // no hay rutas, así que la firma es detectFormat(name, text): extensión de `name`
 // + sniff sobre los primeros 2000 caracteres de `text`. Devuelve null si no se reconoce.
@@ -401,7 +466,7 @@ export function detectFormat(name, text) {
   if (ext === ".nbib" || ext === ".medline") return "medline";
   if (ext === ".xml") return "pubmed_xml";
   if (ext === ".bib") return "bibtex";
-  if (ext === ".csv") return "csv";
+  if (ext === ".csv") return esEmbaseCampos((text || "").slice(0, 4000)) ? "embase_campos" : "csv";
   if (ext === ".ris") return "ris";
   // .txt u otros: sniff
   const head = (text || "").slice(0, 2000);
@@ -409,6 +474,7 @@ export function detectFormat(name, text) {
   if (/^PMID- /m.test(head)) return "medline";
   if (head.includes("<PubmedArticle")) return "pubmed_xml";
   if (/^@\w+\s*\{/m.test(head)) return "bibtex";
+  if (esEmbaseCampos(head)) return "embase_campos";
   if (pareceTabla(head)) return "csv";
   return null;
 }
@@ -429,5 +495,5 @@ function pareceTabla(head) {
 
 export const PARSERS = {
   ris: parseRis, medline: parseMedline, pubmed_xml: parsePubmedXml,
-  bibtex: parseBibtex, csv: parseCsv,
+  bibtex: parseBibtex, csv: parseCsv, embase_campos: parseEmbaseCampos,
 };

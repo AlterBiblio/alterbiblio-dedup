@@ -5,7 +5,7 @@
 // congreso comparten el DOI del suplemento). Cascada conservadora de 6 reglas +
 // título casi idéntico a revisión. Ante la duda, se conservan ambos.
 
-import { titleSim, commentKind, jaroWinkler } from "./normalize.js";
+import { titleSim, commentKind, jaroWinkler, isCnDoi } from "./normalize.js";
 
 // Python f"{x:.2f}" usa redondeo bancario (mitad al par); toFixed(2) de JS redondea
 // la mitad hacia arriba. En [0,1] (dominio de los Jaccard) sólo divergen 0,125 y 0,625,
@@ -164,9 +164,14 @@ export function dedup(records, { mergeThr = 0.5, reviewThr = 0.3, prio = {} } = 
   };
 
   const normJournal = (x) => (x.journal || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  // dedup.py:_es_registro_central — CENTRAL no es una revista, sino un registro de ensayos que
+  // reindexa artículos de otras fuentes: sus registros nunca son co-publicaciones del original.
+  const esRegistroCentral = (x) =>
+    isCnDoi(x.doi || "") || normJournal(x).startsWith("cochranecentralregister");
   const copubReason = (a, b) => {
     // Ver dedup.py: misma obra co-publicada en dos revistas (publicación conjunta o doble
     // publicación CME) — refina el motivo genérico "posible duplicado" recomendando conservar uno solo.
+    if (esRegistroCentral(a) || esRegistroCentral(b)) return null;
     if (!(a.ntitle && a.ntitle === b.ntitle)) return null;
     if (!(a.fauthor && a.fauthor === b.fauthor)) return null;
     if (!(a.year && a.year === b.year)) return null;

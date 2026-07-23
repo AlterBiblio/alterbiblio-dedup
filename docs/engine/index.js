@@ -27,7 +27,11 @@ export function deduplicar(entradas, opts = {}) {
   const { mergeThr = 0.5, reviewThr = 0.3, format = null, lang = "es" } = opts;
   const allrecs = [];
   const counts = new Map();
-  for (const { name, text, source } of entradas) {
+  for (const { name, text: textoCrudo, source } of entradas) {
+    // Equivalente a leer con utf-8-sig en Python (dedup.py): fuera el BOM que ponen
+    // Embase, Excel y Windows. Con él pegado, la primera etiqueta del fichero no casa
+    // y se pierde el primer registro —o el formato entero deja de reconocerse—.
+    const text = String(textoCrudo || "").replace(/^\uFEFF/, "");
     const fmt = format || detectFormat(name, text);
     if (fmt === null) throw new Error(errFormato(name));
     const src = (source || "").trim() || nombreBase(name);
